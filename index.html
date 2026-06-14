@@ -8,7 +8,7 @@
       name="description"
       content="A shared marketplace with secured seller accounts."
     >
-    <link rel="stylesheet" href="styles.css?v=20260614-5">
+    <link rel="stylesheet" href="styles.css?v=20260614-6">
   </head>
   <body>
     <header class="app-header">
@@ -120,6 +120,13 @@
                 <input id="itemPrice" name="itemPrice" type="number" min="0" step="0.01" required>
               </label>
               <label>
+                <span>Shipping cost</span>
+                <input id="shippingCost" name="shippingCost" type="number" min="0" step="0.01" value="0">
+              </label>
+            </div>
+
+            <div class="form-row">
+              <label>
                 <span>Category</span>
                 <select id="itemCategory" name="itemCategory">
                   <option>Home</option>
@@ -225,6 +232,66 @@
       </section>
     </div>
 
+    <div id="sellerRulesModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="sellerRulesTitle" hidden>
+      <section class="agreement-modal panel">
+        <div class="modal-heading">
+          <div>
+            <h2 id="sellerRulesTitle">Seller Rules and Responsibilities</h2>
+            <p>Before using Seller Tools, you must read and agree to the following seller rules.</p>
+          </div>
+          <button id="closeSellerRulesButton" class="icon-button" type="button" aria-label="Close seller rules">x</button>
+        </div>
+        <section class="agreement-box standalone-agreement" aria-label="Seller Rules and Responsibilities">
+          <p>By checking the agreement box and continuing, you understand that selling on this marketplace is a privilege and may be removed at any time by the marketplace administrators.</p>
+          <h3>Seller Booth Fee</h3>
+          <p>1. Sellers must pay a one-time $20.00 booth fee before their first sale post is allowed to be listed on the marketplace.</p>
+          <p>2. The booth fee must be paid through Cash App to: <strong>$S4C2025</strong></p>
+          <p>3. After payment is made, the seller's first post will remain waiting for approval until an admin confirms the booth fee payment and approves seller access.</p>
+          <p>4. Once approved, the seller may post items without needing approval for every listing, unless seller access is later revoked by an admin.</p>
+          <p>5. 100% of the $20.00 booth fee goes to S4C nonprofit.</p>
+          <p>6. 100% of the money from sold items goes directly to the seller. S4C does not take a percentage of item sales.</p>
+          <p>7. The booth fee helps support S4C and the operation of the community marketplace.</p>
+          <p>8. The booth fee is non-refundable unless S4C chooses otherwise.</p>
+          <p>9. Paying the booth fee does not guarantee permanent seller access. Seller access may be denied, suspended, or revoked for rule violations, unsafe behavior, dishonest listings, or misuse of the marketplace.</p>
+          <h3>Listings</h3>
+          <p>10. Sellers are responsible for making sure all listings are accurate, honest, and complete.</p>
+          <p>11. Sellers must include clear photos, an accurate item description, item condition, price, and any important details a buyer should know before purchasing.</p>
+          <p>12. Sellers may not list stolen, illegal, unsafe, counterfeit, recalled, restricted, weapon-related, drug-related, adult, or inappropriate items.</p>
+          <p>13. Sellers are responsible for removing sold items from the marketplace as soon as possible after sale.</p>
+          <p>14. Sellers may not intentionally mislead buyers about an item's condition, value, brand, size, working condition, shipping cost, or availability.</p>
+          <h3>Payments</h3>
+          <p>15. All item payments are handled directly between the buyer and seller through the seller's approved outside payment method.</p>
+          <p>16. The marketplace, S4C, Standing 4 Causes, Stoners 4 a Cause, RunYourAI, admins, organizers, and volunteers do not collect, hold, process, refund, or guarantee seller item payments.</p>
+          <p>17. Sellers are responsible for resolving payment questions, refunds, disputes, and buyer concerns directly with the buyer.</p>
+          <h3>Shipping</h3>
+          <p>18. Sellers are responsible for figuring out the correct shipping cost before completing the sale.</p>
+          <p>19. Shipping costs are the buyer's responsibility unless the seller clearly agrees otherwise.</p>
+          <p>20. Sellers must ship sold items within 4 days of sale unless the buyer and seller both agree to a different timeline.</p>
+          <p>21. Sellers are responsible for packaging items safely and properly so they are protected during shipping.</p>
+          <p>22. Sellers must provide the buyer with tracking information after shipping.</p>
+          <p>23. Sellers must send the buyer a photo of the shipping receipt or tracking receipt as proof that the item was shipped.</p>
+          <h3>Local Pickup</h3>
+          <p>24. If a seller offers local pickup, the seller and buyer are responsible for arranging a safe public meeting location.</p>
+          <p>25. The marketplace is not responsible for local pickup arrangements, missed meetings, safety issues, or disputes between buyer and seller.</p>
+          <h3>Communication</h3>
+          <p>26. Sellers must communicate with buyers respectfully and honestly.</p>
+          <p>27. Sellers should respond to buyer questions in a reasonable amount of time.</p>
+          <p>28. Sellers may not harass, threaten, pressure, scam, or abuse buyers, admins, or other users.</p>
+          <h3>Admin Rights</h3>
+          <p>29. Marketplace admins may remove any listing at any time.</p>
+          <p>30. Marketplace admins may deny, suspend, or revoke seller access at any time for rule violations, suspicious activity, buyer complaints, unsafe behavior, or misuse of the marketplace.</p>
+          <p>31. Sellers understand that the marketplace is provided as a community listing platform only. The marketplace does not guarantee sales, payments, shipping, item quality, buyer behavior, or seller success.</p>
+        </section>
+        <label class="agreement-check">
+          <input id="sellerRulesCheck" type="checkbox">
+          <span>I have read, understand, and agree to follow the Seller Rules and Responsibilities.</span>
+        </label>
+        <div class="form-actions">
+          <button id="acceptSellerRulesButton" class="primary-button" type="button" disabled>Continue to Seller Login</button>
+        </div>
+      </section>
+    </div>
+
     <div id="authModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
       <section class="auth-modal panel">
         <div class="modal-heading">
@@ -272,6 +339,11 @@
           </div>
           <div class="detail-copy">
             <p id="detailPrice" class="detail-price"></p>
+            <div class="cost-breakdown" aria-label="Cost breakdown">
+              <div><span>Item price</span><strong id="detailItemPrice"></strong></div>
+              <div><span>Shipping</span><strong id="detailShipping"></strong></div>
+              <div class="total-line"><span>Total</span><strong id="detailTotal"></strong></div>
+            </div>
             <p id="detailDescription"></p>
             <p id="detailSeller" class="seller-line"></p>
             <div id="paymentOptions" class="payment-options" aria-label="Seller payment options"></div>
@@ -298,6 +370,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="app.js?v=20260614-4" defer></script>
+    <script src="app.js?v=20260614-6" defer></script>
   </body>
 </html>

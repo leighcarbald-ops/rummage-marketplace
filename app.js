@@ -1,5 +1,6 @@
 const config = window.RUMMAGE_SUPABASE || {};
 const AGREEMENT_KEY = "rummage-marketplace-agreement-v1";
+const SELLER_RULES_KEY = "rummage-marketplace-seller-rules-v1";
 const isConfigured =
   config.url &&
   config.anonKey &&
@@ -41,6 +42,10 @@ const elements = {
   siteAgreementCheck: document.querySelector("#siteAgreementCheck"),
   acceptAgreementButton: document.querySelector("#acceptAgreementButton"),
   acceptAndSellerButton: document.querySelector("#acceptAndSellerButton"),
+  sellerRulesModal: document.querySelector("#sellerRulesModal"),
+  sellerRulesCheck: document.querySelector("#sellerRulesCheck"),
+  acceptSellerRulesButton: document.querySelector("#acceptSellerRulesButton"),
+  closeSellerRulesButton: document.querySelector("#closeSellerRulesButton"),
   authModal: document.querySelector("#authModal"),
   openAuthButton: document.querySelector("#openAuthButton"),
   closeAuthButton: document.querySelector("#closeAuthButton"),
@@ -59,6 +64,7 @@ const elements = {
   itemTitle: document.querySelector("#itemTitle"),
   itemDescription: document.querySelector("#itemDescription"),
   itemPrice: document.querySelector("#itemPrice"),
+  shippingCost: document.querySelector("#shippingCost"),
   itemCategory: document.querySelector("#itemCategory"),
   itemImage: document.querySelector("#itemImage"),
   imagePreview: document.querySelector("#imagePreview"),
@@ -78,6 +84,9 @@ const elements = {
   imageCount: document.querySelector("#imageCount"),
   thumbnailStrip: document.querySelector("#thumbnailStrip"),
   detailPrice: document.querySelector("#detailPrice"),
+  detailItemPrice: document.querySelector("#detailItemPrice"),
+  detailShipping: document.querySelector("#detailShipping"),
+  detailTotal: document.querySelector("#detailTotal"),
   detailDescription: document.querySelector("#detailDescription"),
   detailSeller: document.querySelector("#detailSeller"),
   paymentOptions: document.querySelector("#paymentOptions"),
@@ -90,6 +99,10 @@ function formatPrice(value) {
   }).format(Number(value) || 0);
 }
 
+function numberValue(value) {
+  return Number(value) || 0;
+}
+
 function normalize(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -100,6 +113,10 @@ function currentUserId() {
 
 function isAdmin() {
   return Boolean(state.profile?.is_admin);
+}
+
+function isApprovedSeller() {
+  return Boolean(state.profile?.seller_approved || state.profile?.is_admin);
 }
 
 function createPlaceholder(title) {
@@ -200,6 +217,38 @@ function openAuthModal() {
   }
   elements.authModal.hidden = false;
   elements.authEmail.focus();
+}
+
+function hasAcceptedSellerRules() {
+  return localStorage.getItem(SELLER_RULES_KEY) === "accepted";
+}
+
+function openSellerEntry() {
+  if (hasAcceptedSellerRules()) {
+    openAuthModal();
+    return;
+  }
+  elements.sellerRulesModal.hidden = false;
+}
+
+function closeSellerRulesModal() {
+  elements.sellerRulesModal.hidden = true;
+}
+
+function acceptSellerRules() {
+  if (!elements.sellerRulesCheck.checked) return;
+  localStorage.setItem(SELLER_RULES_KEY, "accepted");
+  closeSellerRulesModal();
+  openAuthModal();
+}
+
+async function markSellerRulesAccepted() {
+  if (!state.session) return;
+  await supabaseClient.from("profiles").upsert({
+    id: currentUserId(),
+    seller_rules_accepted: true,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 function closeAuthModal() {
@@ -444,7 +493,13 @@ function openItemModal(itemId) {
   state.detailImageIndex = 0;
   elements.detailCategory.textContent = item.category;
   elements.detailTitle.textContent = item.title;
-  elements.detailPrice.textContent = formatPrice(item.price);
+  const itemPrice = numberValue(item.price);
+  const shippingCost = numberValue(item.shipping_cost);
+  const totalCost = itemPrice + shippingCost;
+  elements.detailPrice.textContent = formatPrice(totalCost);
+  elements.detailItemPrice.textContent = formatPrice(itemPrice);
+  elements.detailShipping.textContent = formatPrice(shippingCost);
+  elements.detailTotal.textContent = formatPrice(totalCost);
   elements.detailDescription.textContent = item.description;
   elements.detailSeller.textContent = `Sold by ${item.seller_name}`;
 
@@ -500,7 +555,7 @@ function acceptAgreement(openSellerTools = false) {
 
   if (openSellerTools) {
     switchView("seller");
-    openAuthModal();
+    openSellerEntry();
   }
 }
 
@@ -561,7 +616,7 @@ function renderSellerItems() {
 
     const meta = document.createElement("p");
     meta.className = "seller-line";
-    meta.textContent = `${formatPrice(item.price)} - ${item.category}`;
+      meta.textContent = `${formatPrice(item.price)} + ${formatPrice(item.shipping_cost)} shipping - ${item.category}`;
 
     const actions = document.createElement("div");
     actions.className = "seller-actions";
@@ -610,12 +665,13 @@ function renderAdmin() {
       title.textContent = item.title;
       const meta = document.createElement("p");
       meta.className = "seller-line";
-      meta.textContent = `${formatPrice(item.price)} - ${item.seller_name} - ${item.status || "active"}`;
+      meta.textContent = `${formatPrice(item.price)} + ${formatPrice(item.shipping_cost)} shipping - ${item.seller_name} - ${item.status || "active"}`;
       const actions = document.createElement("div");
       actions.className = "seller-actions";
 
       [
         ["Active", "active"],
+        ["Pending", "pending"],
         ["Hide", "hidden"],
         ["Remove", "removed"],
       ].forEach(([label, status]) => {
@@ -653,7 +709,7 @@ function renderAdmin() {
       title.textContent = profile.seller_name || profile.id;
       const meta = document.createElement("p");
       meta.className = "seller-line";
-      meta.textContent = `${profile.is_admin ? "Admin" : "Seller"} - ${profile.is_suspended ? "Suspended" : "Active"}`;
+      meta.textContent = `${profile.is_admin ? "Admin" : "Seller"} - ${profile.is_suspended ? "Suspended" : "Active"} - ${profile.seller_approved ? "Seller approved" : "Needs approval"} - ${profile.booth_fee_confirmed ? "Booth fee confirmed" : "Booth fee pending"}`;
       const actions = document.createElement("div");
       actions.className = "seller-actions";
 
@@ -666,7 +722,23 @@ function renderAdmin() {
         adminUpdateSellerSuspension(profile.id, !profile.is_suspended)
       ));
 
-      actions.append(suspendButton);
+      const approveButton = document.createElement("button");
+      approveButton.className = "text-button";
+      approveButton.type = "button";
+      approveButton.textContent = profile.seller_approved ? "Unapprove" : "Approve Seller";
+      approveButton.addEventListener("click", () => (
+        adminUpdateSellerApproval(profile.id, !profile.seller_approved)
+      ));
+
+      const boothButton = document.createElement("button");
+      boothButton.className = "text-button";
+      boothButton.type = "button";
+      boothButton.textContent = profile.booth_fee_confirmed ? "Unconfirm Fee" : "Confirm Fee";
+      boothButton.addEventListener("click", () => (
+        adminUpdateBoothFee(profile.id, !profile.booth_fee_confirmed)
+      ));
+
+      actions.append(suspendButton, approveButton, boothButton);
       row.append(title, meta, actions);
       elements.adminSellers.append(row);
     });
@@ -703,7 +775,7 @@ function switchView(viewName) {
 
   if (viewName === "seller" && !state.session) {
     showMessage("Sign in or create a seller account to manage listings.");
-    openAuthModal();
+    openSellerEntry();
   }
 
   if (viewName === "admin" && !isAdmin()) {
@@ -741,6 +813,7 @@ function startEdit(itemId) {
   elements.itemTitle.value = item.title;
   elements.itemDescription.value = item.description;
   elements.itemPrice.value = item.price;
+  elements.shippingCost.value = numberValue(item.shipping_cost);
   elements.itemCategory.value = item.category;
   state.imageFiles = [];
   state.existingImageUrls = getItemImages(item);
@@ -878,6 +951,51 @@ async function adminUpdateSellerSuspension(profileId, isSuspended) {
   }
 }
 
+async function adminUpdateSellerApproval(profileId, isApproved) {
+  if (!isAdmin()) return;
+  setBusy(true);
+  try {
+    await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        seller_approved: isApproved,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+    await loadAdminData();
+  } catch (error) {
+    elements.adminSummary.textContent = error.message || "Could not update seller approval.";
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function adminUpdateBoothFee(profileId, isConfirmed) {
+  if (!isAdmin()) return;
+  setBusy(true);
+  try {
+    await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        booth_fee_confirmed: isConfirmed,
+        seller_approved: isConfirmed,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+    await loadAdminData();
+  } catch (error) {
+    elements.adminSummary.textContent = error.message || "Could not update booth fee.";
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function upsertProfile(sellerName, payments) {
   const userId = currentUserId();
   if (!userId) return;
@@ -949,11 +1067,16 @@ async function handleSubmit(event) {
       title: elements.itemTitle.value.trim(),
       description: elements.itemDescription.value.trim(),
       price: Number(elements.itemPrice.value),
+      shipping_cost: Number(elements.shippingCost.value) || 0,
       category: elements.itemCategory.value,
       image_url: imageUrls[0] || null,
       image_urls: imageUrls,
       updated_at: new Date().toISOString(),
     };
+
+    if (!elements.editingId.value) {
+      payload.status = isApprovedSeller() ? "active" : "pending";
+    }
 
     await upsertProfile(sellerName, payments);
 
@@ -1034,6 +1157,10 @@ async function signIn(event) {
   try {
     state.session = await directPasswordSignIn(email, password);
     await loadSellerProfile();
+    if (hasAcceptedSellerRules()) {
+      await markSellerRulesAccepted();
+      await loadSellerProfile();
+    }
     await loadItems();
     closeAuthModal();
   } catch (error) {
@@ -1061,6 +1188,10 @@ async function signUp() {
 
   try {
     state.session = await directSignUp(email, password);
+    if (state.session && hasAcceptedSellerRules()) {
+      await markSellerRulesAccepted();
+      await loadSellerProfile();
+    }
     showMessage(
       state.session
         ? "Account created. You are signed in."
@@ -1097,7 +1228,7 @@ async function loadSellerProfile() {
   }
   const { data } = await supabaseClient
     .from("profiles")
-    .select("id,seller_name,payment_url,cashapp_url,venmo_url,paypal_url,is_admin,is_suspended")
+    .select("id,seller_name,payment_url,cashapp_url,venmo_url,paypal_url,is_admin,is_suspended,seller_approved,booth_fee_confirmed,seller_rules_accepted")
     .eq("id", currentUserId())
     .maybeSingle();
 
@@ -1126,7 +1257,12 @@ function bindEvents() {
   });
   elements.acceptAgreementButton.addEventListener("click", () => acceptAgreement(false));
   elements.acceptAndSellerButton.addEventListener("click", () => acceptAgreement(true));
-  elements.openAuthButton.addEventListener("click", openAuthModal);
+  elements.sellerRulesCheck.addEventListener("change", () => {
+    elements.acceptSellerRulesButton.disabled = !elements.sellerRulesCheck.checked;
+  });
+  elements.acceptSellerRulesButton.addEventListener("click", acceptSellerRules);
+  elements.closeSellerRulesButton.addEventListener("click", closeSellerRulesModal);
+  elements.openAuthButton.addEventListener("click", openSellerEntry);
   elements.closeAuthButton.addEventListener("click", closeAuthModal);
   elements.closeItemButton.addEventListener("click", closeItemModal);
   elements.prevImageButton.addEventListener("click", () => moveDetailImage(-1));
@@ -1139,6 +1275,9 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !elements.authModal.hidden) {
       closeAuthModal();
+    }
+    if (event.key === "Escape" && !elements.sellerRulesModal.hidden) {
+      closeSellerRulesModal();
     }
     if (event.key === "Escape" && !elements.itemModal.hidden) {
       closeItemModal();

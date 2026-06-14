@@ -675,6 +675,38 @@ form.panel.is-disabled {
   font-weight: 850;
 }
 
+.cost-breakdown {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 0.75rem;
+}
+
+.cost-breakdown div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #111819;
+}
+
+.cost-breakdown strong {
+  color: #111819;
+}
+
+.cost-breakdown .total-line {
+  border-top: 1px solid var(--line);
+  margin-top: 0.25rem;
+  padding-top: 0.55rem;
+  font-weight: 850;
+}
+
+.cost-breakdown .total-line strong {
+  color: #0f766e;
+}
+
 #detailDescription,
 #detailTitle {
   color: #111819;

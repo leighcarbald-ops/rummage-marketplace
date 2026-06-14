@@ -15,6 +15,9 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 - Seller payment options are external Cash App, Venmo, and PayPal links only.
 - Seller account creation requires agreement to the marketplace disclaimer.
 - Admin users can hide, restore, remove, delete listings, and suspend sellers.
+- Listings include shipping cost and buyer-facing total cost.
+- Sellers must acknowledge seller rules before opening seller signup/login.
+- Unapproved sellers' new listings can remain pending until booth fee/admin approval.
 
 ## Files
 
@@ -29,6 +32,7 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 - `supabase-step-4-payment-and-gallery.sql` - payment links and multiple item images
 - `supabase-step-5-payment-methods.sql` - separate Cash App, Venmo, and PayPal links
 - `supabase-step-6-admin.sql` - admin moderation columns and policies
+- `supabase-step-7-shipping-and-seller-approval.sql` - shipping, seller rules, and booth-fee approval fields
 - `CNAME` - GitHub Pages custom domain: `S4C.rummagesale.runyourai.pro`
 - `.nojekyll` - GitHub Pages compatibility
 
@@ -42,9 +46,10 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 6. Run `supabase-step-4-payment-and-gallery.sql`.
 7. Run `supabase-step-5-payment-methods.sql`.
 8. Run `supabase-step-6-admin.sql`.
-9. Open **Project Settings > API**.
-10. Copy the Project URL and anon public key.
-11. Put them in `config.js`:
+9. Run `supabase-step-7-shipping-and-seller-approval.sql`.
+10. Open **Project Settings > API**.
+11. Copy the Project URL and anon public key.
+12. Put them in `config.js`:
 
 ```js
 window.RUMMAGE_SUPABASE = {
@@ -110,6 +115,8 @@ is_suspended = false
 ```
 
 Then sign out and sign back into the marketplace. The **Admin** tab should appear.
+
+Admins can also confirm a seller's booth fee and approve seller access. Unapproved sellers' new listings are saved as `pending` until an admin changes them to `active`.
 
 ## Payments
 
