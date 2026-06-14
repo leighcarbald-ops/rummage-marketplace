@@ -14,6 +14,7 @@ const state = {
   session: null,
   imageFile: null,
   existingImageUrl: "",
+  authBusy: false,
 };
 
 const elements = {
@@ -82,7 +83,6 @@ function setBusy(isBusy) {
     elements.signInButton,
     elements.signUpButton,
     elements.signOutButton,
-    elements.openAuthButton,
     elements.saveButton,
     elements.refreshButton,
   ].forEach((button) => {
@@ -96,12 +96,24 @@ function showMessage(message, isError = false) {
 }
 
 function openAuthModal() {
+  if (!state.session) {
+    showMessage("Sign in or create a seller account to manage your own listings.");
+  }
   elements.authModal.hidden = false;
   elements.authEmail.focus();
 }
 
 function closeAuthModal() {
   elements.authModal.hidden = true;
+}
+
+function withTimeout(promise, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), 15000);
+    }),
+  ]);
 }
 
 function requireSupabase() {
@@ -191,6 +203,7 @@ function renderMarketplace() {
 function renderSellerItems() {
   const userId = currentUserId();
   const ownedItems = state.items.filter((item) => item.owner_id === userId);
+  const sellerFields = elements.form.querySelectorAll("input, textarea, select, button");
 
   elements.sellerItems.textContent = "";
   elements.sellerSummary.textContent = userId
@@ -198,6 +211,9 @@ function renderSellerItems() {
     : "Sign in to manage your listings.";
 
   if (!userId) {
+    sellerFields.forEach((field) => {
+      field.disabled = true;
+    });
     const empty = document.createElement("div");
     empty.className = "empty-state";
     empty.textContent = "Seller tools unlock after sign in.";
@@ -207,6 +223,9 @@ function renderSellerItems() {
   }
 
   elements.form.classList.remove("is-disabled");
+  sellerFields.forEach((field) => {
+    field.disabled = false;
+  });
 
   if (!ownedItems.length) {
     const empty = document.createElement("div");
@@ -345,6 +364,7 @@ async function loadItems() {
 
   if (error) {
     elements.marketSummary.textContent = error.message;
+    showMessage(error.message, true);
     return;
   }
 
@@ -465,49 +485,89 @@ function handleImageChange(event) {
 async function signIn(event) {
   event.preventDefault();
   if (!requireSupabase()) return;
+  if (state.authBusy) return;
 
-  setBusy(true);
-  const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email: elements.authEmail.value.trim(),
-    password: elements.authPassword.value,
-  });
-  setBusy(false);
-
-  if (error) {
-    showMessage(error.message, true);
+  const email = elements.authEmail.value.trim();
+  const password = elements.authPassword.value;
+  if (!email || !password) {
+    showMessage("Enter your email and password.", true);
     return;
   }
 
-  state.session = data.session;
-  await loadSellerProfile();
-  await loadItems();
-  closeAuthModal();
+  state.authBusy = true;
+  showMessage("Signing in...");
+  setBusy(true);
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient.auth.signInWithPassword({
+        email,
+        password,
+      }),
+      "Sign in is taking too long. Check the email/password and try again."
+    );
+
+    if (error) {
+      showMessage(error.message, true);
+      return;
+    }
+
+    state.session = data.session;
+    await loadSellerProfile();
+    await loadItems();
+    closeAuthModal();
+  } catch (error) {
+    showMessage(error.message || "Could not sign in.", true);
+  } finally {
+    state.authBusy = false;
+    setBusy(false);
+  }
 }
 
 async function signUp() {
   if (!requireSupabase()) return;
+  if (state.authBusy) return;
 
-  setBusy(true);
-  const { data, error } = await supabaseClient.auth.signUp({
-    email: elements.authEmail.value.trim(),
-    password: elements.authPassword.value,
-  });
-  setBusy(false);
-
-  if (error) {
-    showMessage(error.message, true);
+  const email = elements.authEmail.value.trim();
+  const password = elements.authPassword.value;
+  if (!email || !password) {
+    showMessage("Enter an email and password before creating an account.", true);
     return;
   }
 
-  state.session = data.session;
-  showMessage(
-    data.session
-      ? "Account created. You are signed in."
-      : "Account created. Check your email to confirm before signing in."
-  );
-  await loadItems();
-  if (data.session) {
-    closeAuthModal();
+  state.authBusy = true;
+  showMessage("Creating account...");
+  setBusy(true);
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient.auth.signUp({
+        email,
+        password,
+      }),
+      "Account creation is taking too long. Try again in a moment."
+    );
+
+    if (error) {
+      showMessage(error.message, true);
+      return;
+    }
+
+    state.session = data.session;
+    showMessage(
+      data.session
+        ? "Account created. You are signed in."
+        : "Account created. Check your email to confirm before signing in."
+    );
+    await loadItems();
+    if (data.session) {
+      closeAuthModal();
+    }
+  } catch (error) {
+    showMessage(error.message || "Could not create the account.", true);
+  } finally {
+    state.authBusy = false;
+    setBusy(false);
   }
 }
 
@@ -544,11 +604,6 @@ function bindEvents() {
   elements.refreshButton.addEventListener("click", loadItems);
   elements.openAuthButton.addEventListener("click", openAuthModal);
   elements.closeAuthButton.addEventListener("click", closeAuthModal);
-  elements.authModal.addEventListener("click", (event) => {
-    if (event.target === elements.authModal) {
-      closeAuthModal();
-    }
-  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !elements.authModal.hidden) {
       closeAuthModal();
