@@ -83,6 +83,11 @@
             </label>
 
             <label>
+              <span>Payment link</span>
+              <input id="paymentUrl" name="paymentUrl" type="url" maxlength="240" placeholder="Cash App, Venmo, or PayPal link">
+            </label>
+
+            <label>
               <span>Item title</span>
               <input id="itemTitle" name="itemTitle" type="text" maxlength="70" required>
             </label>
@@ -112,11 +117,11 @@
             </div>
 
             <label>
-              <span>Image</span>
-              <input id="itemImage" name="itemImage" type="file" accept="image/*">
+              <span>Images</span>
+              <input id="itemImage" name="itemImage" type="file" accept="image/*" multiple>
             </label>
             <div id="imagePreview" class="image-preview" aria-live="polite">
-              <span>No image selected</span>
+              <span>No images selected</span>
             </div>
 
             <input id="editingId" type="hidden">
@@ -164,6 +169,36 @@
             <button id="signUpButton" class="secondary-button" type="button">Create Account</button>
           </div>
         </form>
+      </section>
+    </div>
+
+    <div id="itemModal" class="modal-backdrop item-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="detailTitle" hidden>
+      <section class="item-modal panel">
+        <div class="modal-heading">
+          <div>
+            <p id="detailCategory" class="item-category"></p>
+            <h2 id="detailTitle"></h2>
+          </div>
+          <button id="closeItemButton" class="icon-button" type="button" aria-label="Close item details">x</button>
+        </div>
+        <div class="detail-layout">
+          <div class="gallery">
+            <div id="detailImage" class="detail-image"></div>
+            <div class="gallery-controls">
+              <button id="prevImageButton" class="secondary-button" type="button">Previous</button>
+              <span id="imageCount"></span>
+              <button id="nextImageButton" class="secondary-button" type="button">Next</button>
+            </div>
+            <div id="thumbnailStrip" class="thumbnail-strip" aria-label="Item images"></div>
+          </div>
+          <div class="detail-copy">
+            <p id="detailPrice" class="detail-price"></p>
+            <p id="detailDescription"></p>
+            <p id="detailSeller" class="seller-line"></p>
+            <a id="paymentLink" class="primary-button payment-button" href="#" target="_blank" rel="noopener">Pay Seller</a>
+            <p class="payment-note">Payments happen directly with the seller through their chosen external payment link.</p>
+          </div>
+        </div>
       </section>
     </div>
 

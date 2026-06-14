@@ -11,6 +11,8 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 - Every item has an `owner_id` tied to the logged-in Supabase user.
 - Supabase Row Level Security prevents sellers from editing or deleting other sellers' items.
 - Images upload to a public Supabase Storage bucket named `listing-images`.
+- Marketplace cards open a detail popup with larger images and gallery controls.
+- Seller payment is an external Cash App, Venmo, or PayPal link only.
 
 ## Files
 
@@ -22,6 +24,7 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 - `supabase-step-1-tables.sql` - tables only, easier to run first
 - `supabase-step-2-item-policies.sql` - seller ownership policies
 - `supabase-step-3-storage.sql` - image bucket and upload policies
+- `supabase-step-4-payment-and-gallery.sql` - payment links and multiple item images
 - `CNAME` - GitHub Pages custom domain: `S4C.rummagesale.runyourai.pro`
 - `.nojekyll` - GitHub Pages compatibility
 
@@ -32,9 +35,10 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 3. Run `supabase-step-1-tables.sql`.
 4. Run `supabase-step-2-item-policies.sql`.
 5. Run `supabase-step-3-storage.sql`.
-6. Open **Project Settings > API**.
-7. Copy the Project URL and anon public key.
-8. Put them in `config.js`:
+6. Run `supabase-step-4-payment-and-gallery.sql`.
+7. Open **Project Settings > API**.
+8. Copy the Project URL and anon public key.
+9. Put them in `config.js`:
 
 ```js
 window.RUMMAGE_SUPABASE = {
@@ -87,3 +91,9 @@ auth.uid() = owner_id
 ```
 
 That means a seller can only update or delete listings attached to their own login. Even if someone edits the JavaScript in their browser, Supabase should reject cross-seller writes.
+
+## Payments
+
+This app does not process payments, store card data, or move money.
+
+Sellers can add one external HTTPS payment link for Cash App, Venmo, or PayPal. Buyers leave the marketplace and pay the seller directly through that service.

@@ -12,8 +12,10 @@ const supabaseClient = isConfigured
 const state = {
   items: [],
   session: null,
-  imageFile: null,
-  existingImageUrl: "",
+  imageFiles: [],
+  existingImageUrls: [],
+  detailItem: null,
+  detailImageIndex: 0,
   authBusy: false,
 };
 
@@ -38,6 +40,7 @@ const elements = {
   signOutButton: document.querySelector("#signOutButton"),
   form: document.querySelector("#itemForm"),
   sellerName: document.querySelector("#sellerName"),
+  paymentUrl: document.querySelector("#paymentUrl"),
   itemTitle: document.querySelector("#itemTitle"),
   itemDescription: document.querySelector("#itemDescription"),
   itemPrice: document.querySelector("#itemPrice"),
@@ -50,6 +53,19 @@ const elements = {
   sellerItems: document.querySelector("#sellerItems"),
   sellerSummary: document.querySelector("#sellerSummary"),
   itemTemplate: document.querySelector("#itemCardTemplate"),
+  itemModal: document.querySelector("#itemModal"),
+  closeItemButton: document.querySelector("#closeItemButton"),
+  detailCategory: document.querySelector("#detailCategory"),
+  detailTitle: document.querySelector("#detailTitle"),
+  detailImage: document.querySelector("#detailImage"),
+  prevImageButton: document.querySelector("#prevImageButton"),
+  nextImageButton: document.querySelector("#nextImageButton"),
+  imageCount: document.querySelector("#imageCount"),
+  thumbnailStrip: document.querySelector("#thumbnailStrip"),
+  detailPrice: document.querySelector("#detailPrice"),
+  detailDescription: document.querySelector("#detailDescription"),
+  detailSeller: document.querySelector("#detailSeller"),
+  paymentLink: document.querySelector("#paymentLink"),
 };
 
 function formatPrice(value) {
@@ -76,6 +92,37 @@ function createPlaceholder(title) {
       .map((word) => word[0]?.toUpperCase())
       .join("") || "RM"
   );
+}
+
+function getItemImages(item) {
+  if (Array.isArray(item.image_urls) && item.image_urls.length) {
+    return item.image_urls.filter(Boolean);
+  }
+  return item.image_url ? [item.image_url] : [];
+}
+
+function isAllowedPaymentUrl(value) {
+  if (!value) return true;
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      (
+        host === "cash.app" ||
+        host.endsWith(".cash.app") ||
+        host === "venmo.com" ||
+        host.endsWith(".venmo.com") ||
+        host === "paypal.me" ||
+        host.endsWith(".paypal.me") ||
+        host === "paypal.com" ||
+        host.endsWith(".paypal.com")
+      )
+    );
+  } catch {
+    return false;
+  }
 }
 
 function setBusy(isBusy) {
@@ -123,26 +170,33 @@ function requireSupabase() {
   return false;
 }
 
-function setImagePreview(src) {
+function setImagePreview(srcList) {
+  const images = Array.isArray(srcList) ? srcList.filter(Boolean) : [];
   elements.imagePreview.textContent = "";
-  if (!src) {
+  if (!images.length) {
     const empty = document.createElement("span");
-    empty.textContent = "No image selected";
+    empty.textContent = "No images selected";
     elements.imagePreview.append(empty);
     return;
   }
 
-  const img = document.createElement("img");
-  img.src = src;
-  img.alt = "Selected item preview";
-  elements.imagePreview.append(img);
+  const previewGrid = document.createElement("div");
+  previewGrid.className = "preview-grid";
+  images.forEach((src, index) => {
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = `Selected item preview ${index + 1}`;
+    previewGrid.append(img);
+  });
+  elements.imagePreview.append(previewGrid);
 }
 
 function renderImage(container, item) {
   container.textContent = "";
-  if (item.image_url) {
+  const images = getItemImages(item);
+  if (images.length) {
     const img = document.createElement("img");
-    img.src = item.image_url;
+    img.src = images[0];
     img.alt = item.title;
     container.append(img);
     return;
@@ -190,14 +244,103 @@ function renderMarketplace() {
 
   items.forEach((item) => {
     const card = elements.itemTemplate.content.firstElementChild.cloneNode(true);
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `View ${item.title}`);
     renderImage(card.querySelector(".item-image"), item);
     card.querySelector(".item-category").textContent = item.category;
     card.querySelector(".item-price").textContent = formatPrice(item.price);
     card.querySelector("h3").textContent = item.title;
     card.querySelector(".item-description").textContent = item.description;
     card.querySelector(".seller-line").textContent = `Sold by ${item.seller_name}`;
+    card.addEventListener("click", () => openItemModal(item.id));
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openItemModal(item.id);
+      }
+    });
     elements.marketGrid.append(card);
   });
+}
+
+function renderDetailImage() {
+  const item = state.detailItem;
+  const images = item ? getItemImages(item) : [];
+  const currentImage = images[state.detailImageIndex];
+
+  elements.detailImage.textContent = "";
+  if (currentImage) {
+    const img = document.createElement("img");
+    img.src = currentImage;
+    img.alt = `${item.title} image ${state.detailImageIndex + 1}`;
+    elements.detailImage.append(img);
+  } else {
+    elements.detailImage.textContent = createPlaceholder(item?.title || "Item");
+  }
+
+  const hasMultiple = images.length > 1;
+  elements.prevImageButton.hidden = !hasMultiple;
+  elements.nextImageButton.hidden = !hasMultiple;
+  elements.imageCount.textContent = images.length
+    ? `${state.detailImageIndex + 1} of ${images.length}`
+    : "No images";
+
+  elements.thumbnailStrip.textContent = "";
+  images.forEach((src, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "thumbnail-button";
+    button.classList.toggle("is-active", index === state.detailImageIndex);
+    button.setAttribute("aria-label", `Show image ${index + 1}`);
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "";
+    button.append(img);
+    button.addEventListener("click", () => {
+      state.detailImageIndex = index;
+      renderDetailImage();
+    });
+    elements.thumbnailStrip.append(button);
+  });
+}
+
+function openItemModal(itemId) {
+  const item = state.items.find((entry) => entry.id === itemId);
+  if (!item) return;
+
+  state.detailItem = item;
+  state.detailImageIndex = 0;
+  elements.detailCategory.textContent = item.category;
+  elements.detailTitle.textContent = item.title;
+  elements.detailPrice.textContent = formatPrice(item.price);
+  elements.detailDescription.textContent = item.description;
+  elements.detailSeller.textContent = `Sold by ${item.seller_name}`;
+
+  if (item.payment_url) {
+    elements.paymentLink.hidden = false;
+    elements.paymentLink.href = item.payment_url;
+  } else {
+    elements.paymentLink.hidden = true;
+    elements.paymentLink.removeAttribute("href");
+  }
+
+  renderDetailImage();
+  elements.itemModal.hidden = false;
+}
+
+function closeItemModal() {
+  elements.itemModal.hidden = true;
+  state.detailItem = null;
+  state.detailImageIndex = 0;
+}
+
+function moveDetailImage(direction) {
+  const images = state.detailItem ? getItemImages(state.detailItem) : [];
+  if (images.length < 2) return;
+  state.detailImageIndex =
+    (state.detailImageIndex + direction + images.length) % images.length;
+  renderDetailImage();
 }
 
 function renderSellerItems() {
@@ -313,9 +456,9 @@ function resetForm() {
   elements.editingId.value = "";
   elements.saveButton.textContent = "Publish Item";
   elements.cancelEditButton.hidden = true;
-  state.imageFile = null;
-  state.existingImageUrl = "";
-  setImagePreview("");
+  state.imageFiles = [];
+  state.existingImageUrls = [];
+  setImagePreview([]);
   renderSellerItems();
 }
 
@@ -325,15 +468,16 @@ function startEdit(itemId) {
 
   elements.editingId.value = item.id;
   elements.sellerName.value = item.seller_name;
+  elements.paymentUrl.value = item.payment_url || "";
   elements.itemTitle.value = item.title;
   elements.itemDescription.value = item.description;
   elements.itemPrice.value = item.price;
   elements.itemCategory.value = item.category;
-  state.imageFile = null;
-  state.existingImageUrl = item.image_url || "";
+  state.imageFiles = [];
+  state.existingImageUrls = getItemImages(item);
   elements.saveButton.textContent = "Save Changes";
   elements.cancelEditButton.hidden = false;
-  setImagePreview(state.existingImageUrl);
+  setImagePreview(state.existingImageUrls);
   switchView("seller");
   elements.itemTitle.focus();
 }
@@ -372,33 +516,40 @@ async function loadItems() {
   renderAll();
 }
 
-async function upsertProfile(sellerName) {
+async function upsertProfile(sellerName, paymentUrl) {
   const userId = currentUserId();
   if (!userId) return;
 
   await supabaseClient.from("profiles").upsert({
     id: userId,
     seller_name: sellerName,
+    payment_url: paymentUrl,
     updated_at: new Date().toISOString(),
   });
 }
 
-async function uploadImage(itemId) {
-  if (!state.imageFile) return state.existingImageUrl;
+async function uploadImages(itemId) {
+  if (!state.imageFiles.length) return state.existingImageUrls;
 
-  const safeName = state.imageFile.name.replace(/[^a-z0-9._-]/gi, "-").toLowerCase();
-  const path = `${currentUserId()}/${itemId}-${Date.now()}-${safeName}`;
-  const { error } = await supabaseClient.storage
-    .from("listing-images")
-    .upload(path, state.imageFile, {
-      cacheControl: "3600",
-      upsert: false,
-    });
+  const uploadedUrls = [];
 
-  if (error) throw error;
+  for (const file of state.imageFiles) {
+    const safeName = file.name.replace(/[^a-z0-9._-]/gi, "-").toLowerCase();
+    const path = `${currentUserId()}/${itemId}-${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+    const { error } = await supabaseClient.storage
+      .from("listing-images")
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
 
-  const { data } = supabaseClient.storage.from("listing-images").getPublicUrl(path);
-  return data.publicUrl;
+    if (error) throw error;
+
+    const { data } = supabaseClient.storage.from("listing-images").getPublicUrl(path);
+    uploadedUrls.push(data.publicUrl);
+  }
+
+  return uploadedUrls;
 }
 
 async function handleSubmit(event) {
@@ -414,20 +565,28 @@ async function handleSubmit(event) {
   try {
     const itemId = elements.editingId.value || crypto.randomUUID();
     const sellerName = elements.sellerName.value.trim();
-    const imageUrl = await uploadImage(itemId);
+    const paymentUrl = elements.paymentUrl.value.trim();
+    if (!isAllowedPaymentUrl(paymentUrl)) {
+      showMessage("Use an HTTPS Cash App, Venmo, or PayPal link only.", true);
+      return;
+    }
+
+    const imageUrls = await uploadImages(itemId);
     const payload = {
       id: itemId,
       owner_id: currentUserId(),
       seller_name: sellerName,
+      payment_url: paymentUrl || null,
       title: elements.itemTitle.value.trim(),
       description: elements.itemDescription.value.trim(),
       price: Number(elements.itemPrice.value),
       category: elements.itemCategory.value,
-      image_url: imageUrl,
+      image_url: imageUrls[0] || null,
+      image_urls: imageUrls,
       updated_at: new Date().toISOString(),
     };
 
-    await upsertProfile(sellerName);
+    await upsertProfile(sellerName, paymentUrl || null);
 
     const query = supabaseClient.from("items");
     const { error } = elements.editingId.value
@@ -467,19 +626,24 @@ async function deleteItem(itemId) {
 }
 
 function handleImageChange(event) {
-  const file = event.target.files?.[0];
-  state.imageFile = file || null;
+  const files = Array.from(event.target.files || []);
+  state.imageFiles = files;
 
-  if (!file) {
-    setImagePreview(state.existingImageUrl);
+  if (!files.length) {
+    setImagePreview(state.existingImageUrls);
     return;
   }
 
-  const reader = new FileReader();
-  reader.addEventListener("load", () => {
-    setImagePreview(String(reader.result || ""));
-  });
-  reader.readAsDataURL(file);
+  Promise.all(
+    files.map(
+      (file) =>
+        new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.addEventListener("load", () => resolve(String(reader.result || "")));
+          reader.readAsDataURL(file);
+        })
+    )
+  ).then((previews) => setImagePreview(previews));
 }
 
 async function signIn(event) {
@@ -585,12 +749,15 @@ async function loadSellerProfile() {
   if (!state.session) return;
   const { data } = await supabaseClient
     .from("profiles")
-    .select("seller_name")
+    .select("seller_name,payment_url")
     .eq("id", currentUserId())
     .maybeSingle();
 
   if (data?.seller_name) {
     elements.sellerName.value = data.seller_name;
+  }
+  if (data?.payment_url) {
+    elements.paymentUrl.value = data.payment_url;
   }
 }
 
@@ -604,9 +771,26 @@ function bindEvents() {
   elements.refreshButton.addEventListener("click", loadItems);
   elements.openAuthButton.addEventListener("click", openAuthModal);
   elements.closeAuthButton.addEventListener("click", closeAuthModal);
+  elements.closeItemButton.addEventListener("click", closeItemModal);
+  elements.prevImageButton.addEventListener("click", () => moveDetailImage(-1));
+  elements.nextImageButton.addEventListener("click", () => moveDetailImage(1));
+  elements.itemModal.addEventListener("click", (event) => {
+    if (event.target === elements.itemModal) {
+      closeItemModal();
+    }
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !elements.authModal.hidden) {
       closeAuthModal();
+    }
+    if (event.key === "Escape" && !elements.itemModal.hidden) {
+      closeItemModal();
+    }
+    if (!elements.itemModal.hidden && event.key === "ArrowLeft") {
+      moveDetailImage(-1);
+    }
+    if (!elements.itemModal.hidden && event.key === "ArrowRight") {
+      moveDetailImage(1);
     }
   });
   elements.authForm.addEventListener("submit", signIn);

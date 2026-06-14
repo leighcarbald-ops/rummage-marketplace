@@ -297,6 +297,14 @@ button:focus-visible {
   border-radius: 8px;
   background: var(--panel);
   box-shadow: 0 12px 28px rgba(30, 41, 45, 0.1);
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.item-card:hover,
+.item-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(30, 41, 45, 0.14);
 }
 
 .item-image {
@@ -391,6 +399,21 @@ form.panel.is-disabled {
   object-fit: cover;
 }
 
+.preview-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.preview-grid img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
 .form-actions {
   display: flex;
   flex-wrap: wrap;
@@ -466,6 +489,103 @@ form.panel.is-disabled {
   padding: 1.5rem;
 }
 
+.item-modal {
+  width: min(100%, 980px);
+  max-height: min(92vh, 860px);
+  overflow: auto;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.75fr);
+  gap: 1rem;
+}
+
+.gallery {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.detail-image {
+  display: grid;
+  min-height: 380px;
+  aspect-ratio: 4 / 3;
+  place-items: center;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(214, 159, 37, 0.18)),
+    #eef4f2;
+  color: var(--muted);
+  font-size: 2rem;
+  font-weight: 850;
+  overflow: hidden;
+}
+
+.detail-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #f8fbfa;
+}
+
+.gallery-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.thumbnail-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.thumbnail-button {
+  overflow: hidden;
+  min-height: 4.5rem;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  background: #eef4f2;
+  padding: 0;
+}
+
+.thumbnail-button.is-active {
+  border-color: var(--accent);
+}
+
+.thumbnail-button img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.detail-copy {
+  display: grid;
+  align-content: start;
+  gap: 0.9rem;
+}
+
+.detail-price {
+  color: var(--rose);
+  font-size: 1.6rem;
+  font-weight: 850;
+}
+
+.payment-button {
+  display: inline-grid;
+  place-items: center;
+  text-align: center;
+  text-decoration: none;
+}
+
+.payment-note {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 @media (max-width: 760px) {
   .section-heading {
     align-items: stretch;
@@ -479,6 +599,7 @@ form.panel.is-disabled {
 
   .tabs,
   .toolbar,
+  .detail-layout,
   .seller-layout,
   .form-row {
     grid-template-columns: 1fr;
@@ -501,5 +622,9 @@ form.panel.is-disabled {
 
   .section-heading .secondary-button {
     width: 100%;
+  }
+
+  .detail-image {
+    min-height: 260px;
   }
 }
