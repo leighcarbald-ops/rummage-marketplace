@@ -592,6 +592,8 @@ form.panel.is-disabled {
   width: min(100%, 980px);
   max-height: min(92vh, 860px);
   overflow: auto;
+  background: #ffffff;
+  color: #111819;
 }
 
 .detail-layout {
@@ -664,12 +666,18 @@ form.panel.is-disabled {
   display: grid;
   align-content: start;
   gap: 0.9rem;
+  color: #111819;
 }
 
 .detail-price {
-  color: var(--rose);
+  color: #0f766e;
   font-size: 1.6rem;
   font-weight: 850;
+}
+
+#detailDescription,
+#detailTitle {
+  color: #111819;
 }
 
 .payment-options {
