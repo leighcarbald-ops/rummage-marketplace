@@ -1,4 +1,5 @@
 const config = window.RUMMAGE_SUPABASE || {};
+const AGREEMENT_KEY = "rummage-marketplace-agreement-v1";
 const isConfigured =
   config.url &&
   config.anonKey &&
@@ -29,13 +30,16 @@ const elements = {
   marketGrid: document.querySelector("#marketGrid"),
   marketSummary: document.querySelector("#marketSummary"),
   refreshButton: document.querySelector("#refreshButton"),
+  agreementModal: document.querySelector("#agreementModal"),
+  siteAgreementCheck: document.querySelector("#siteAgreementCheck"),
+  acceptAgreementButton: document.querySelector("#acceptAgreementButton"),
+  acceptAndSellerButton: document.querySelector("#acceptAndSellerButton"),
   authModal: document.querySelector("#authModal"),
   openAuthButton: document.querySelector("#openAuthButton"),
   closeAuthButton: document.querySelector("#closeAuthButton"),
   authForm: document.querySelector("#authForm"),
   authEmail: document.querySelector("#authEmail"),
   authPassword: document.querySelector("#authPassword"),
-  agreementCheck: document.querySelector("#agreementCheck"),
   authStatus: document.querySelector("#authStatus"),
   signInButton: document.querySelector("#signInButton"),
   signUpButton: document.querySelector("#signUpButton"),
@@ -204,6 +208,7 @@ async function supabaseFetch(path, options = {}) {
   const timeoutId = window.setTimeout(() => controller.abort(), 12000);
   const headers = {
     apikey: config.anonKey,
+    Authorization: `Bearer ${config.anonKey}`,
     "Content-Type": "application/json",
     ...(options.headers || {}),
   };
@@ -465,6 +470,25 @@ function closeItemModal() {
   elements.itemModal.hidden = true;
   state.detailItem = null;
   state.detailImageIndex = 0;
+}
+
+function hasAcceptedAgreement() {
+  return localStorage.getItem(AGREEMENT_KEY) === "accepted";
+}
+
+function showAgreementIfNeeded() {
+  elements.agreementModal.hidden = hasAcceptedAgreement();
+}
+
+function acceptAgreement(openSellerTools = false) {
+  if (!elements.siteAgreementCheck.checked) return;
+  localStorage.setItem(AGREEMENT_KEY, "accepted");
+  elements.agreementModal.hidden = true;
+
+  if (openSellerTools) {
+    switchView("seller");
+    openAuthModal();
+  }
 }
 
 function moveDetailImage(direction) {
@@ -823,11 +847,6 @@ async function signUp() {
   if (!requireSupabase()) return;
   if (state.authBusy) return;
 
-  if (!elements.agreementCheck.checked) {
-    showMessage("Please agree to the disclaimer before creating a seller account.", true);
-    return;
-  }
-
   const email = elements.authEmail.value.trim();
   const password = elements.authPassword.value;
   if (!email || !password) {
@@ -892,6 +911,13 @@ function bindEvents() {
   elements.searchInput.addEventListener("input", renderMarketplace);
   elements.sortSelect.addEventListener("change", renderMarketplace);
   elements.refreshButton.addEventListener("click", loadItems);
+  elements.siteAgreementCheck.addEventListener("change", () => {
+    const accepted = elements.siteAgreementCheck.checked;
+    elements.acceptAgreementButton.disabled = !accepted;
+    elements.acceptAndSellerButton.disabled = !accepted;
+  });
+  elements.acceptAgreementButton.addEventListener("click", () => acceptAgreement(false));
+  elements.acceptAndSellerButton.addEventListener("click", () => acceptAgreement(true));
   elements.openAuthButton.addEventListener("click", openAuthModal);
   elements.closeAuthButton.addEventListener("click", closeAuthModal);
   elements.closeItemButton.addEventListener("click", closeItemModal);
@@ -938,6 +964,7 @@ async function init() {
   await loadSession();
   await loadSellerProfile();
   await loadItems();
+  showAgreementIfNeeded();
 }
 
 init();

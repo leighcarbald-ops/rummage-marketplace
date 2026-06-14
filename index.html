@@ -8,7 +8,7 @@
       name="description"
       content="A shared marketplace with secured seller accounts."
     >
-    <link rel="stylesheet" href="styles.css?v=20260614-2">
+    <link rel="stylesheet" href="styles.css?v=20260614-3">
   </head>
   <body>
     <header class="app-header">
@@ -160,6 +160,36 @@
       </section>
     </main>
 
+    <div id="agreementModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="agreementTitle" hidden>
+      <section class="agreement-modal panel">
+        <div class="modal-heading">
+          <div>
+            <h2 id="agreementTitle">Rummage Marketplace Disclaimer and User Agreement</h2>
+            <p>Before using this marketplace, you must read and agree to the following terms.</p>
+          </div>
+        </div>
+        <section class="agreement-box standalone-agreement" aria-label="Rummage Marketplace Disclaimer and User Agreement">
+          <p>This marketplace is provided as a community listing platform only. It allows sellers to post items for sale and allows buyers to view those listings and contact or pay sellers through outside payment services.</p>
+          <p>The marketplace, its owners, administrators, organizers, S4C, Standing 4 Causes, Stoners 4 a Cause, RunYourAI, and any related volunteers or representatives do not sell the listed items directly, do not collect payments for sellers, do not process transactions, and do not guarantee any item, payment, delivery, pickup, refund, or agreement between a buyer and seller.</p>
+          <p>All purchases, payments, pickups, deliveries, refunds, disputes, and communications are strictly between the buyer and the seller.</p>
+          <p>You are responsible for your own actions, listings, purchases, payments, and communications. Sellers are responsible for making sure their listings are accurate, honest, legal, and allowed. Buyers are responsible for reviewing listings carefully and deciding whether to purchase from a seller.</p>
+          <p>Payments are handled outside this marketplace through third-party services such as Cash App, Venmo, PayPal, or other seller-provided payment links. This marketplace does not verify, guarantee, insure, or protect any payment made outside the site.</p>
+          <p>The marketplace is not responsible for lost money, undelivered items, damaged items, incorrect listings, scams, chargebacks, refunds, disagreements, or failed transactions.</p>
+          <p>Users may not list illegal, stolen, unsafe, counterfeit, restricted, adult, weapon-related, drug-related, or otherwise inappropriate items.</p>
+          <p>The marketplace administrators reserve the right to remove any listing, deny access, suspend seller privileges, or ban users at any time for any reason, especially for unsafe, dishonest, illegal, or disruptive behavior.</p>
+          <p>Users agree to treat others respectfully and communicate honestly. Users understand that using this marketplace is voluntary and at their own risk.</p>
+        </section>
+        <label class="agreement-check">
+          <input id="siteAgreementCheck" type="checkbox">
+          <span>I have read, understand, and agree to the Rummage Marketplace Disclaimer and User Agreement.</span>
+        </label>
+        <div class="form-actions">
+          <button id="acceptAgreementButton" class="primary-button" type="button" disabled>Continue</button>
+          <button id="acceptAndSellerButton" class="secondary-button" type="button" disabled>Take me to Seller sign up</button>
+        </div>
+      </section>
+    </div>
+
     <div id="authModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
       <section class="auth-modal panel">
         <div class="modal-heading">
@@ -170,18 +200,6 @@
           <button id="closeAuthButton" class="icon-button" type="button" aria-label="Close seller login">×</button>
         </div>
         <form id="authForm" class="auth-form">
-          <section class="agreement-box" aria-label="Rummage Marketplace Disclaimer and User Agreement">
-            <h3>Rummage Marketplace Disclaimer and User Agreement</h3>
-            <p>Before using this marketplace, you must read and agree to the following terms.</p>
-            <p>This marketplace is provided as a community listing platform only. It allows sellers to post items for sale and allows buyers to view those listings and contact or pay sellers through outside payment services.</p>
-            <p>The marketplace, its owners, administrators, organizers, S4C, Standing 4 Causes, Stoners 4 a Cause, RunYourAI, and any related volunteers or representatives do not sell the listed items directly, do not collect payments for sellers, do not process transactions, and do not guarantee any item, payment, delivery, pickup, refund, or agreement between a buyer and seller.</p>
-            <p>All purchases, payments, pickups, deliveries, refunds, disputes, and communications are strictly between the buyer and the seller.</p>
-            <p>Users may not list illegal, stolen, unsafe, counterfeit, restricted, adult, weapon-related, drug-related, or otherwise inappropriate items. Marketplace administrators may remove listings, deny access, suspend seller privileges, or ban users at any time.</p>
-            <label class="agreement-check">
-              <input id="agreementCheck" type="checkbox">
-              <span>I have read, understand, and agree to the Rummage Marketplace Disclaimer and User Agreement.</span>
-            </label>
-          </section>
           <label>
             <span>Email</span>
             <input id="authEmail" name="email" type="email" autocomplete="email" required>
@@ -245,6 +263,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="app.js?v=20260614-2" defer></script>
+    <script src="app.js?v=20260614-3" defer></script>
   </body>
 </html>

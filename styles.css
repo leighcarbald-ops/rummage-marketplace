@@ -279,6 +279,11 @@ button:focus-visible {
   padding: 0.85rem;
 }
 
+.standalone-agreement {
+  max-height: min(48vh, 440px);
+  margin-bottom: 0.85rem;
+}
+
 .agreement-box h3 {
   font-size: 1rem;
 }
@@ -318,6 +323,10 @@ button:focus-visible {
 
 .auth-modal {
   width: min(100%, 520px);
+}
+
+.agreement-modal {
+  width: min(100%, 720px);
 }
 
 .modal-heading {
