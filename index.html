@@ -19,14 +19,20 @@
           <p>Shared listings with secured seller accounts.</p>
         </div>
       </div>
-      <nav class="tabs" aria-label="Main views">
-        <button class="tab-button is-active" type="button" data-view="marketplace">
-          Marketplace
-        </button>
-        <button class="tab-button" type="button" data-view="seller">
-          Seller Tools
-        </button>
-      </nav>
+      <div class="header-controls">
+        <nav class="tabs" aria-label="Main views">
+          <button class="tab-button is-active" type="button" data-view="marketplace">
+            Marketplace
+          </button>
+          <button class="tab-button" type="button" data-view="seller">
+            Seller Tools
+          </button>
+        </nav>
+        <div class="account-actions">
+          <button id="openAuthButton" class="secondary-button" type="button">Seller Login</button>
+          <button id="signOutButton" class="secondary-button" type="button" hidden>Sign Out</button>
+        </div>
+      </div>
     </header>
 
     <main>
@@ -62,28 +68,6 @@
       </section>
 
       <section id="sellerView" class="view" aria-labelledby="sellerTitle">
-        <section class="auth-panel panel" aria-labelledby="authTitle">
-          <div>
-            <h2 id="authTitle">Seller Login</h2>
-            <p id="authStatus">Sign in or create a seller account to manage your own listings.</p>
-          </div>
-          <form id="authForm" class="auth-form">
-            <label>
-              <span>Email</span>
-              <input id="authEmail" name="email" type="email" autocomplete="email" required>
-            </label>
-            <label>
-              <span>Password</span>
-              <input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="6" required>
-            </label>
-            <div class="form-actions">
-              <button id="signInButton" class="primary-button" type="submit">Sign In</button>
-              <button id="signUpButton" class="secondary-button" type="button">Create Account</button>
-              <button id="signOutButton" class="secondary-button" type="button" hidden>Sign Out</button>
-            </div>
-          </form>
-        </section>
-
         <div class="seller-layout">
           <form id="itemForm" class="panel" autocomplete="off">
             <div class="section-heading compact">
@@ -156,6 +140,32 @@
         </div>
       </section>
     </main>
+
+    <div id="authModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
+      <section class="auth-modal panel">
+        <div class="modal-heading">
+          <div>
+            <h2 id="authTitle">Seller Login</h2>
+            <p id="authStatus">Sign in or create a seller account to manage your own listings.</p>
+          </div>
+          <button id="closeAuthButton" class="icon-button" type="button" aria-label="Close seller login">×</button>
+        </div>
+        <form id="authForm" class="auth-form">
+          <label>
+            <span>Email</span>
+            <input id="authEmail" name="email" type="email" autocomplete="email" required>
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="6" required>
+          </label>
+          <div class="form-actions">
+            <button id="signInButton" class="primary-button" type="submit">Sign In</button>
+            <button id="signUpButton" class="secondary-button" type="button">Create Account</button>
+          </div>
+        </form>
+      </section>
+    </div>
 
     <template id="itemCardTemplate">
       <article class="item-card">

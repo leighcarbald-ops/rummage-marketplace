@@ -25,6 +25,9 @@ const elements = {
   marketGrid: document.querySelector("#marketGrid"),
   marketSummary: document.querySelector("#marketSummary"),
   refreshButton: document.querySelector("#refreshButton"),
+  authModal: document.querySelector("#authModal"),
+  openAuthButton: document.querySelector("#openAuthButton"),
+  closeAuthButton: document.querySelector("#closeAuthButton"),
   authForm: document.querySelector("#authForm"),
   authEmail: document.querySelector("#authEmail"),
   authPassword: document.querySelector("#authPassword"),
@@ -79,6 +82,7 @@ function setBusy(isBusy) {
     elements.signInButton,
     elements.signUpButton,
     elements.signOutButton,
+    elements.openAuthButton,
     elements.saveButton,
     elements.refreshButton,
   ].forEach((button) => {
@@ -89,6 +93,15 @@ function setBusy(isBusy) {
 function showMessage(message, isError = false) {
   elements.authStatus.textContent = message;
   elements.authStatus.classList.toggle("is-error", isError);
+}
+
+function openAuthModal() {
+  elements.authModal.hidden = false;
+  elements.authEmail.focus();
+}
+
+function closeAuthModal() {
+  elements.authModal.hidden = true;
 }
 
 function requireSupabase() {
@@ -245,16 +258,12 @@ function renderAuth() {
   const email = state.session?.user?.email;
   const signedIn = Boolean(email);
 
-  elements.authEmail.closest("label").hidden = signedIn;
-  elements.authPassword.closest("label").hidden = signedIn;
-  elements.authEmail.required = !signedIn;
-  elements.authPassword.required = !signedIn;
-  elements.signInButton.hidden = signedIn;
-  elements.signUpButton.hidden = signedIn;
+  elements.openAuthButton.hidden = signedIn;
   elements.signOutButton.hidden = !signedIn;
 
   if (signedIn) {
     showMessage(`Signed in as ${email}.`);
+    closeAuthModal();
   }
 }
 
@@ -271,6 +280,11 @@ function switchView(viewName) {
   elements.views.forEach((view) => {
     view.classList.toggle("is-active", view.id === `${viewName}View`);
   });
+
+  if (viewName === "seller" && !state.session) {
+    showMessage("Sign in or create a seller account to manage listings.");
+    openAuthModal();
+  }
 }
 
 function resetForm() {
@@ -467,6 +481,7 @@ async function signIn(event) {
   state.session = data.session;
   await loadSellerProfile();
   await loadItems();
+  closeAuthModal();
 }
 
 async function signUp() {
@@ -491,6 +506,9 @@ async function signUp() {
       : "Account created. Check your email to confirm before signing in."
   );
   await loadItems();
+  if (data.session) {
+    closeAuthModal();
+  }
 }
 
 async function signOut() {
@@ -524,6 +542,18 @@ function bindEvents() {
   elements.searchInput.addEventListener("input", renderMarketplace);
   elements.sortSelect.addEventListener("change", renderMarketplace);
   elements.refreshButton.addEventListener("click", loadItems);
+  elements.openAuthButton.addEventListener("click", openAuthModal);
+  elements.closeAuthButton.addEventListener("click", closeAuthModal);
+  elements.authModal.addEventListener("click", (event) => {
+    if (event.target === elements.authModal) {
+      closeAuthModal();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !elements.authModal.hidden) {
+      closeAuthModal();
+    }
+  });
   elements.authForm.addEventListener("submit", signIn);
   elements.signUpButton.addEventListener("click", signUp);
   elements.signOutButton.addEventListener("click", signOut);
