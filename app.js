@@ -17,6 +17,7 @@ const state = {
   detailItem: null,
   detailImageIndex: 0,
   authBusy: false,
+  loadingItems: false,
 };
 
 const elements = {
@@ -34,13 +35,16 @@ const elements = {
   authForm: document.querySelector("#authForm"),
   authEmail: document.querySelector("#authEmail"),
   authPassword: document.querySelector("#authPassword"),
+  agreementCheck: document.querySelector("#agreementCheck"),
   authStatus: document.querySelector("#authStatus"),
   signInButton: document.querySelector("#signInButton"),
   signUpButton: document.querySelector("#signUpButton"),
   signOutButton: document.querySelector("#signOutButton"),
   form: document.querySelector("#itemForm"),
   sellerName: document.querySelector("#sellerName"),
-  paymentUrl: document.querySelector("#paymentUrl"),
+  cashappUrl: document.querySelector("#cashappUrl"),
+  venmoUrl: document.querySelector("#venmoUrl"),
+  paypalUrl: document.querySelector("#paypalUrl"),
   itemTitle: document.querySelector("#itemTitle"),
   itemDescription: document.querySelector("#itemDescription"),
   itemPrice: document.querySelector("#itemPrice"),
@@ -65,7 +69,7 @@ const elements = {
   detailPrice: document.querySelector("#detailPrice"),
   detailDescription: document.querySelector("#detailDescription"),
   detailSeller: document.querySelector("#detailSeller"),
-  paymentLink: document.querySelector("#paymentLink"),
+  paymentOptions: document.querySelector("#paymentOptions"),
 };
 
 function formatPrice(value) {
@@ -101,28 +105,60 @@ function getItemImages(item) {
   return item.image_url ? [item.image_url] : [];
 }
 
-function isAllowedPaymentUrl(value) {
+const paymentMethods = [
+  {
+    key: "cashapp_url",
+    label: "Cash App",
+    logo: "assets/cashapp.jpg",
+    hosts: ["cash.app"],
+  },
+  {
+    key: "venmo_url",
+    label: "Venmo",
+    logo: "assets/venmo.png",
+    hosts: ["venmo.com"],
+  },
+  {
+    key: "paypal_url",
+    label: "PayPal",
+    logo: "assets/paypal.png",
+    hosts: ["paypal.me", "paypal.com"],
+  },
+];
+
+function hostMatches(host, allowedHosts) {
+  return allowedHosts.some((allowedHost) => (
+    host === allowedHost || host.endsWith(`.${allowedHost}`)
+  ));
+}
+
+function isAllowedPaymentUrl(value, allowedHosts) {
   if (!value) return true;
 
   try {
     const url = new URL(value);
     const host = url.hostname.replace(/^www\./, "").toLowerCase();
-    return (
-      url.protocol === "https:" &&
-      (
-        host === "cash.app" ||
-        host.endsWith(".cash.app") ||
-        host === "venmo.com" ||
-        host.endsWith(".venmo.com") ||
-        host === "paypal.me" ||
-        host.endsWith(".paypal.me") ||
-        host === "paypal.com" ||
-        host.endsWith(".paypal.com")
-      )
-    );
+    return url.protocol === "https:" && hostMatches(host, allowedHosts);
   } catch {
     return false;
   }
+}
+
+function getPaymentValues() {
+  return {
+    cashapp_url: elements.cashappUrl.value.trim(),
+    venmo_url: elements.venmoUrl.value.trim(),
+    paypal_url: elements.paypalUrl.value.trim(),
+  };
+}
+
+function getItemPaymentOptions(item) {
+  return paymentMethods
+    .map((method) => ({
+      ...method,
+      url: item[method.key] || "",
+    }))
+    .filter((method) => method.url);
 }
 
 function setBusy(isBusy) {
@@ -161,6 +197,31 @@ function withTimeout(promise, message) {
       window.setTimeout(() => reject(new Error(message)), 15000);
     }),
   ]);
+}
+
+async function directPasswordSignIn(email, password) {
+  const response = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${config.anonKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error_description || data.msg || data.error || "Could not sign in.");
+  }
+
+  await supabaseClient.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  });
+
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  return sessionData.session;
 }
 
 function requireSupabase() {
@@ -317,12 +378,31 @@ function openItemModal(itemId) {
   elements.detailDescription.textContent = item.description;
   elements.detailSeller.textContent = `Sold by ${item.seller_name}`;
 
-  if (item.payment_url) {
-    elements.paymentLink.hidden = false;
-    elements.paymentLink.href = item.payment_url;
+  elements.paymentOptions.textContent = "";
+  const options = getItemPaymentOptions(item);
+  if (options.length) {
+    options.forEach((option) => {
+      const link = document.createElement("a");
+      link.className = "payment-option";
+      link.href = option.url;
+      link.target = "_blank";
+      link.rel = "noopener";
+
+      const logo = document.createElement("img");
+      logo.src = option.logo;
+      logo.alt = "";
+
+      const text = document.createElement("span");
+      text.textContent = option.label;
+
+      link.append(logo, text);
+      elements.paymentOptions.append(link);
+    });
   } else {
-    elements.paymentLink.hidden = true;
-    elements.paymentLink.removeAttribute("href");
+    const empty = document.createElement("p");
+    empty.className = "seller-line";
+    empty.textContent = "No seller payment link was provided.";
+    elements.paymentOptions.append(empty);
   }
 
   renderDetailImage();
@@ -468,7 +548,9 @@ function startEdit(itemId) {
 
   elements.editingId.value = item.id;
   elements.sellerName.value = item.seller_name;
-  elements.paymentUrl.value = item.payment_url || "";
+  elements.cashappUrl.value = item.cashapp_url || "";
+  elements.venmoUrl.value = item.venmo_url || "";
+  elements.paypalUrl.value = item.paypal_url || item.payment_url || "";
   elements.itemTitle.value = item.title;
   elements.itemDescription.value = item.description;
   elements.itemPrice.value = item.price;
@@ -498,32 +580,46 @@ async function loadItems() {
     return;
   }
 
+  state.loadingItems = true;
+  elements.marketSummary.textContent = "Loading marketplace items...";
   setBusy(true);
-  const { data, error } = await supabaseClient
-    .from("items")
-    .select("*")
-    .order("created_at", { ascending: false });
 
-  setBusy(false);
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient
+        .from("items")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      "Marketplace items are taking too long to load. Refresh and try again."
+    );
 
-  if (error) {
-    elements.marketSummary.textContent = error.message;
-    showMessage(error.message, true);
-    return;
+    if (error) {
+      elements.marketSummary.textContent = error.message;
+      showMessage(error.message, true);
+      return;
+    }
+
+    state.items = data || [];
+    renderAll();
+  } catch (error) {
+    elements.marketSummary.textContent = error.message || "Could not load marketplace items.";
+    showMessage(elements.marketSummary.textContent, true);
+  } finally {
+    state.loadingItems = false;
+    setBusy(false);
   }
-
-  state.items = data || [];
-  renderAll();
 }
 
-async function upsertProfile(sellerName, paymentUrl) {
+async function upsertProfile(sellerName, payments) {
   const userId = currentUserId();
   if (!userId) return;
 
   await supabaseClient.from("profiles").upsert({
     id: userId,
     seller_name: sellerName,
-    payment_url: paymentUrl,
+    cashapp_url: payments.cashapp_url || null,
+    venmo_url: payments.venmo_url || null,
+    paypal_url: payments.paypal_url || null,
     updated_at: new Date().toISOString(),
   });
 }
@@ -565,10 +661,12 @@ async function handleSubmit(event) {
   try {
     const itemId = elements.editingId.value || crypto.randomUUID();
     const sellerName = elements.sellerName.value.trim();
-    const paymentUrl = elements.paymentUrl.value.trim();
-    if (!isAllowedPaymentUrl(paymentUrl)) {
-      showMessage("Use an HTTPS Cash App, Venmo, or PayPal link only.", true);
-      return;
+    const payments = getPaymentValues();
+    for (const method of paymentMethods) {
+      if (!isAllowedPaymentUrl(payments[method.key], method.hosts)) {
+        showMessage(`Use a valid HTTPS ${method.label} link in the ${method.label} field.`, true);
+        return;
+      }
     }
 
     const imageUrls = await uploadImages(itemId);
@@ -576,7 +674,10 @@ async function handleSubmit(event) {
       id: itemId,
       owner_id: currentUserId(),
       seller_name: sellerName,
-      payment_url: paymentUrl || null,
+      cashapp_url: payments.cashapp_url || null,
+      venmo_url: payments.venmo_url || null,
+      paypal_url: payments.paypal_url || null,
+      payment_url: payments.paypal_url || payments.venmo_url || payments.cashapp_url || null,
       title: elements.itemTitle.value.trim(),
       description: elements.itemDescription.value.trim(),
       price: Number(elements.itemPrice.value),
@@ -586,7 +687,7 @@ async function handleSubmit(event) {
       updated_at: new Date().toISOString(),
     };
 
-    await upsertProfile(sellerName, paymentUrl || null);
+    await upsertProfile(sellerName, payments);
 
     const query = supabaseClient.from("items");
     const { error } = elements.editingId.value
@@ -663,6 +764,7 @@ async function signIn(event) {
   setBusy(true);
 
   try {
+    let signedInSession = null;
     const { data, error } = await withTimeout(
       supabaseClient.auth.signInWithPassword({
         email,
@@ -676,12 +778,24 @@ async function signIn(event) {
       return;
     }
 
-    state.session = data.session;
+    signedInSession = data.session;
+    state.session = signedInSession;
     await loadSellerProfile();
     await loadItems();
     closeAuthModal();
   } catch (error) {
-    showMessage(error.message || "Could not sign in.", true);
+    try {
+      showMessage("Retrying sign in...");
+      state.session = await withTimeout(
+        directPasswordSignIn(email, password),
+        "Sign in is taking too long. Please try again in a moment."
+      );
+      await loadSellerProfile();
+      await loadItems();
+      closeAuthModal();
+    } catch (fallbackError) {
+      showMessage(fallbackError.message || error.message || "Could not sign in.", true);
+    }
   } finally {
     state.authBusy = false;
     setBusy(false);
@@ -691,6 +805,11 @@ async function signIn(event) {
 async function signUp() {
   if (!requireSupabase()) return;
   if (state.authBusy) return;
+
+  if (!elements.agreementCheck.checked) {
+    showMessage("Please agree to the disclaimer before creating a seller account.", true);
+    return;
+  }
 
   const email = elements.authEmail.value.trim();
   const password = elements.authPassword.value;
@@ -749,16 +868,16 @@ async function loadSellerProfile() {
   if (!state.session) return;
   const { data } = await supabaseClient
     .from("profiles")
-    .select("seller_name,payment_url")
+    .select("seller_name,payment_url,cashapp_url,venmo_url,paypal_url")
     .eq("id", currentUserId())
     .maybeSingle();
 
   if (data?.seller_name) {
     elements.sellerName.value = data.seller_name;
   }
-  if (data?.payment_url) {
-    elements.paymentUrl.value = data.payment_url;
-  }
+  elements.cashappUrl.value = data?.cashapp_url || "";
+  elements.venmoUrl.value = data?.venmo_url || "";
+  elements.paypalUrl.value = data?.paypal_url || data?.payment_url || "";
 }
 
 function bindEvents() {

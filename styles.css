@@ -192,6 +192,20 @@ label {
   gap: 0.4rem;
 }
 
+fieldset {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+
+legend {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+  padding: 0 0.35rem;
+}
+
 label span {
   font-size: 0.82rem;
   font-weight: 750;
@@ -252,6 +266,40 @@ button:focus-visible {
 .auth-form {
   display: grid;
   gap: 0.75rem;
+}
+
+.agreement-box {
+  display: grid;
+  max-height: 240px;
+  gap: 0.65rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 0.85rem;
+}
+
+.agreement-box h3 {
+  font-size: 1rem;
+}
+
+.agreement-box p,
+.agreement-check span {
+  color: #405056;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.agreement-check {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  margin-top: 0.25rem;
+}
+
+.agreement-check input {
+  width: 1.1rem;
+  min-height: 1.1rem;
+  margin-top: 0.2rem;
 }
 
 .modal-backdrop {
@@ -380,6 +428,28 @@ form.panel.is-disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.8rem;
+}
+
+.payment-fields {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.payment-field {
+  grid-template-columns: 3rem minmax(4.5rem, 6rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.payment-field img,
+.payment-option img {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  object-fit: contain;
+  padding: 0.2rem;
 }
 
 .image-preview {
@@ -573,11 +643,29 @@ form.panel.is-disabled {
   font-weight: 850;
 }
 
-.payment-button {
-  display: inline-grid;
-  place-items: center;
-  text-align: center;
+.payment-options {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.payment-option {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.2rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  padding: 0.45rem 0.65rem;
   text-decoration: none;
+  font-weight: 800;
+}
+
+.payment-option:hover {
+  border-color: rgba(15, 118, 110, 0.45);
+  color: var(--accent-strong);
 }
 
 .payment-note {
@@ -601,7 +689,8 @@ form.panel.is-disabled {
   .toolbar,
   .detail-layout,
   .seller-layout,
-  .form-row {
+  .form-row,
+  .payment-field {
     grid-template-columns: 1fr;
   }
 

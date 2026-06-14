@@ -12,7 +12,8 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 - Supabase Row Level Security prevents sellers from editing or deleting other sellers' items.
 - Images upload to a public Supabase Storage bucket named `listing-images`.
 - Marketplace cards open a detail popup with larger images and gallery controls.
-- Seller payment is an external Cash App, Venmo, or PayPal link only.
+- Seller payment options are external Cash App, Venmo, and PayPal links only.
+- Seller account creation requires agreement to the marketplace disclaimer.
 
 ## Files
 
@@ -25,6 +26,7 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 - `supabase-step-2-item-policies.sql` - seller ownership policies
 - `supabase-step-3-storage.sql` - image bucket and upload policies
 - `supabase-step-4-payment-and-gallery.sql` - payment links and multiple item images
+- `supabase-step-5-payment-methods.sql` - separate Cash App, Venmo, and PayPal links
 - `CNAME` - GitHub Pages custom domain: `S4C.rummagesale.runyourai.pro`
 - `.nojekyll` - GitHub Pages compatibility
 
@@ -36,9 +38,10 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 4. Run `supabase-step-2-item-policies.sql`.
 5. Run `supabase-step-3-storage.sql`.
 6. Run `supabase-step-4-payment-and-gallery.sql`.
-7. Open **Project Settings > API**.
-8. Copy the Project URL and anon public key.
-9. Put them in `config.js`:
+7. Run `supabase-step-5-payment-methods.sql`.
+8. Open **Project Settings > API**.
+9. Copy the Project URL and anon public key.
+10. Put them in `config.js`:
 
 ```js
 window.RUMMAGE_SUPABASE = {
@@ -96,4 +99,4 @@ That means a seller can only update or delete listings attached to their own log
 
 This app does not process payments, store card data, or move money.
 
-Sellers can add one external HTTPS payment link for Cash App, Venmo, or PayPal. Buyers leave the marketplace and pay the seller directly through that service.
+Sellers can add external HTTPS payment links for Cash App, Venmo, and PayPal. Buyers leave the marketplace and pay the seller directly through that service. Empty payment methods are hidden from buyers.

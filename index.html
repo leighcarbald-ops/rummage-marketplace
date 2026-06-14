@@ -8,7 +8,7 @@
       name="description"
       content="A shared marketplace with secured seller accounts."
     >
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260614-2">
   </head>
   <body>
     <header class="app-header">
@@ -82,10 +82,24 @@
               <input id="sellerName" name="sellerName" type="text" maxlength="40" required>
             </label>
 
-            <label>
-              <span>Payment link</span>
-              <input id="paymentUrl" name="paymentUrl" type="url" maxlength="240" placeholder="Cash App, Venmo, or PayPal link">
-            </label>
+            <fieldset class="payment-fields">
+              <legend>Payment links</legend>
+              <label class="payment-field">
+                <img src="assets/cashapp.jpg" alt="" aria-hidden="true">
+                <span>Cash App</span>
+                <input id="cashappUrl" name="cashappUrl" type="url" maxlength="240" placeholder="https://cash.app/$yourname">
+              </label>
+              <label class="payment-field">
+                <img src="assets/venmo.png" alt="" aria-hidden="true">
+                <span>Venmo</span>
+                <input id="venmoUrl" name="venmoUrl" type="url" maxlength="240" placeholder="https://venmo.com/yourname">
+              </label>
+              <label class="payment-field">
+                <img src="assets/paypal.png" alt="" aria-hidden="true">
+                <span>PayPal</span>
+                <input id="paypalUrl" name="paypalUrl" type="url" maxlength="240" placeholder="https://paypal.me/yourname">
+              </label>
+            </fieldset>
 
             <label>
               <span>Item title</span>
@@ -156,6 +170,18 @@
           <button id="closeAuthButton" class="icon-button" type="button" aria-label="Close seller login">×</button>
         </div>
         <form id="authForm" class="auth-form">
+          <section class="agreement-box" aria-label="Rummage Marketplace Disclaimer and User Agreement">
+            <h3>Rummage Marketplace Disclaimer and User Agreement</h3>
+            <p>Before using this marketplace, you must read and agree to the following terms.</p>
+            <p>This marketplace is provided as a community listing platform only. It allows sellers to post items for sale and allows buyers to view those listings and contact or pay sellers through outside payment services.</p>
+            <p>The marketplace, its owners, administrators, organizers, S4C, Standing 4 Causes, Stoners 4 a Cause, RunYourAI, and any related volunteers or representatives do not sell the listed items directly, do not collect payments for sellers, do not process transactions, and do not guarantee any item, payment, delivery, pickup, refund, or agreement between a buyer and seller.</p>
+            <p>All purchases, payments, pickups, deliveries, refunds, disputes, and communications are strictly between the buyer and the seller.</p>
+            <p>Users may not list illegal, stolen, unsafe, counterfeit, restricted, adult, weapon-related, drug-related, or otherwise inappropriate items. Marketplace administrators may remove listings, deny access, suspend seller privileges, or ban users at any time.</p>
+            <label class="agreement-check">
+              <input id="agreementCheck" type="checkbox">
+              <span>I have read, understand, and agree to the Rummage Marketplace Disclaimer and User Agreement.</span>
+            </label>
+          </section>
           <label>
             <span>Email</span>
             <input id="authEmail" name="email" type="email" autocomplete="email" required>
@@ -195,7 +221,7 @@
             <p id="detailPrice" class="detail-price"></p>
             <p id="detailDescription"></p>
             <p id="detailSeller" class="seller-line"></p>
-            <a id="paymentLink" class="primary-button payment-button" href="#" target="_blank" rel="noopener">Pay Seller</a>
+            <div id="paymentOptions" class="payment-options" aria-label="Seller payment options"></div>
             <p class="payment-note">Payments happen directly with the seller through their chosen external payment link.</p>
           </div>
         </div>
@@ -219,6 +245,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="app.js" defer></script>
+    <script src="app.js?v=20260614-2" defer></script>
   </body>
 </html>
