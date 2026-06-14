@@ -12,7 +12,9 @@ const supabaseClient = isConfigured
 
 const state = {
   items: [],
+  profiles: [],
   session: null,
+  profile: null,
   imageFiles: [],
   existingImageUrls: [],
   detailItem: null,
@@ -24,12 +26,17 @@ const state = {
 const elements = {
   tabs: document.querySelectorAll(".tab-button"),
   views: document.querySelectorAll(".view"),
+  adminTabButton: document.querySelector("#adminTabButton"),
   setupNotice: document.querySelector("#setupNotice"),
   searchInput: document.querySelector("#searchInput"),
   sortSelect: document.querySelector("#sortSelect"),
   marketGrid: document.querySelector("#marketGrid"),
   marketSummary: document.querySelector("#marketSummary"),
   refreshButton: document.querySelector("#refreshButton"),
+  adminRefreshButton: document.querySelector("#adminRefreshButton"),
+  adminSummary: document.querySelector("#adminSummary"),
+  adminItems: document.querySelector("#adminItems"),
+  adminSellers: document.querySelector("#adminSellers"),
   agreementModal: document.querySelector("#agreementModal"),
   siteAgreementCheck: document.querySelector("#siteAgreementCheck"),
   acceptAgreementButton: document.querySelector("#acceptAgreementButton"),
@@ -89,6 +96,10 @@ function normalize(value) {
 
 function currentUserId() {
   return state.session?.user?.id || "";
+}
+
+function isAdmin() {
+  return Boolean(state.profile?.is_admin);
 }
 
 function createPlaceholder(title) {
@@ -172,6 +183,7 @@ function setBusy(isBusy) {
     elements.signOutButton,
     elements.saveButton,
     elements.refreshButton,
+    elements.adminRefreshButton,
   ].forEach((button) => {
     button.disabled = isBusy;
   });
@@ -208,7 +220,7 @@ async function supabaseFetch(path, options = {}) {
   const timeoutId = window.setTimeout(() => controller.abort(), 12000);
   const headers = {
     apikey: config.anonKey,
-    Authorization: `Bearer ${config.anonKey}`,
+    Authorization: `Bearer ${state.session?.access_token || config.anonKey}`,
     "Content-Type": "application/json",
     ...(options.headers || {}),
   };
@@ -325,6 +337,7 @@ function renderImage(container, item) {
 function getVisibleItems() {
   const query = normalize(elements.searchInput.value);
   const filtered = state.items.filter((item) => {
+    if ((item.status || "active") !== "active") return false;
     const haystack = normalize(
       `${item.title} ${item.description} ${item.seller_name} ${item.category}`
     );
@@ -572,6 +585,94 @@ function renderSellerItems() {
   });
 }
 
+function renderAdmin() {
+  elements.adminTabButton.hidden = !isAdmin();
+  elements.adminItems.textContent = "";
+  elements.adminSellers.textContent = "";
+
+  if (!isAdmin()) {
+    elements.adminSummary.textContent = "Admin access is not enabled for this account.";
+    return;
+  }
+
+  elements.adminSummary.textContent = `${state.items.length} listing${state.items.length === 1 ? "" : "s"} and ${state.profiles.length} seller profile${state.profiles.length === 1 ? "" : "s"}.`;
+
+  if (!state.items.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "No listings found.";
+    elements.adminItems.append(empty);
+  } else {
+    state.items.forEach((item) => {
+      const row = document.createElement("article");
+      row.className = "admin-row";
+      const title = document.createElement("h3");
+      title.textContent = item.title;
+      const meta = document.createElement("p");
+      meta.className = "seller-line";
+      meta.textContent = `${formatPrice(item.price)} - ${item.seller_name} - ${item.status || "active"}`;
+      const actions = document.createElement("div");
+      actions.className = "seller-actions";
+
+      [
+        ["Active", "active"],
+        ["Hide", "hidden"],
+        ["Remove", "removed"],
+      ].forEach(([label, status]) => {
+        const button = document.createElement("button");
+        button.className = "text-button";
+        button.type = "button";
+        button.textContent = label;
+        button.disabled = (item.status || "active") === status;
+        button.addEventListener("click", () => adminUpdateItemStatus(item.id, status));
+        actions.append(button);
+      });
+
+      const deleteButton = document.createElement("button");
+      deleteButton.className = "text-button delete";
+      deleteButton.type = "button";
+      deleteButton.textContent = "Delete";
+      deleteButton.addEventListener("click", () => adminDeleteItem(item.id));
+      actions.append(deleteButton);
+
+      row.append(title, meta, actions);
+      elements.adminItems.append(row);
+    });
+  }
+
+  if (!state.profiles.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "No seller profiles found.";
+    elements.adminSellers.append(empty);
+  } else {
+    state.profiles.forEach((profile) => {
+      const row = document.createElement("article");
+      row.className = "admin-row";
+      const title = document.createElement("h3");
+      title.textContent = profile.seller_name || profile.id;
+      const meta = document.createElement("p");
+      meta.className = "seller-line";
+      meta.textContent = `${profile.is_admin ? "Admin" : "Seller"} - ${profile.is_suspended ? "Suspended" : "Active"}`;
+      const actions = document.createElement("div");
+      actions.className = "seller-actions";
+
+      const suspendButton = document.createElement("button");
+      suspendButton.className = profile.is_suspended ? "text-button" : "text-button delete";
+      suspendButton.type = "button";
+      suspendButton.textContent = profile.is_suspended ? "Unsuspend" : "Suspend";
+      suspendButton.disabled = profile.id === currentUserId();
+      suspendButton.addEventListener("click", () => (
+        adminUpdateSellerSuspension(profile.id, !profile.is_suspended)
+      ));
+
+      actions.append(suspendButton);
+      row.append(title, meta, actions);
+      elements.adminSellers.append(row);
+    });
+  }
+}
+
 function renderAuth() {
   const email = state.session?.user?.email;
   const signedIn = Boolean(email);
@@ -589,6 +690,7 @@ function renderAll() {
   renderMarketplace();
   renderSellerItems();
   renderAuth();
+  renderAdmin();
 }
 
 function switchView(viewName) {
@@ -602,6 +704,15 @@ function switchView(viewName) {
   if (viewName === "seller" && !state.session) {
     showMessage("Sign in or create a seller account to manage listings.");
     openAuthModal();
+  }
+
+  if (viewName === "admin" && !isAdmin()) {
+    switchView("marketplace");
+    return;
+  }
+
+  if (viewName === "admin") {
+    loadAdminData();
   }
 }
 
@@ -662,7 +773,9 @@ async function loadItems() {
 
   try {
     const data = await supabaseFetch(
-      "/rest/v1/items?select=*&order=created_at.desc",
+      isAdmin()
+        ? "/rest/v1/items?select=*&order=created_at.desc"
+        : "/rest/v1/items?select=*&status=eq.active&order=created_at.desc",
       { method: "GET" }
     );
 
@@ -673,6 +786,94 @@ async function loadItems() {
     showMessage(elements.marketSummary.textContent, true);
   } finally {
     state.loadingItems = false;
+    setBusy(false);
+  }
+}
+
+async function loadAdminData() {
+  if (!isAdmin()) {
+    state.profiles = [];
+    renderAll();
+    return;
+  }
+
+  setBusy(true);
+  try {
+    const [items, profiles] = await Promise.all([
+      supabaseFetch("/rest/v1/items?select=*&order=created_at.desc", { method: "GET" }),
+      supabaseFetch("/rest/v1/profiles?select=*&order=updated_at.desc", { method: "GET" }),
+    ]);
+    state.items = items || [];
+    state.profiles = profiles || [];
+    renderAll();
+  } catch (error) {
+    elements.adminSummary.textContent = error.message || "Could not load admin data.";
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function adminUpdateItemStatus(itemId, status) {
+  if (!isAdmin()) return;
+  setBusy(true);
+  try {
+    await supabaseFetch(`/rest/v1/items?id=eq.${encodeURIComponent(itemId)}`, {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        status,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+    await loadAdminData();
+  } catch (error) {
+    elements.adminSummary.textContent = error.message || "Could not update listing.";
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function adminDeleteItem(itemId) {
+  if (!isAdmin()) return;
+  const confirmed = window.confirm("Permanently delete this listing?");
+  if (!confirmed) return;
+
+  setBusy(true);
+  try {
+    await supabaseFetch(`/rest/v1/items?id=eq.${encodeURIComponent(itemId)}`, {
+      method: "DELETE",
+      headers: {
+        Prefer: "return=minimal",
+      },
+    });
+    await loadAdminData();
+  } catch (error) {
+    elements.adminSummary.textContent = error.message || "Could not delete listing.";
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function adminUpdateSellerSuspension(profileId, isSuspended) {
+  if (!isAdmin()) return;
+  setBusy(true);
+  try {
+    await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        is_suspended: isSuspended,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+    await loadAdminData();
+  } catch (error) {
+    elements.adminSummary.textContent = error.message || "Could not update seller.";
+  } finally {
     setBusy(false);
   }
 }
@@ -881,6 +1082,8 @@ async function signOut() {
   if (!requireSupabase()) return;
   await supabaseClient.auth.signOut();
   state.session = null;
+  state.profile = null;
+  state.profiles = [];
   elements.authForm.reset();
   resetForm();
   await loadItems();
@@ -888,13 +1091,17 @@ async function signOut() {
 }
 
 async function loadSellerProfile() {
-  if (!state.session) return;
+  if (!state.session) {
+    state.profile = null;
+    return;
+  }
   const { data } = await supabaseClient
     .from("profiles")
-    .select("seller_name,payment_url,cashapp_url,venmo_url,paypal_url")
+    .select("id,seller_name,payment_url,cashapp_url,venmo_url,paypal_url,is_admin,is_suspended")
     .eq("id", currentUserId())
     .maybeSingle();
 
+  state.profile = data || null;
   if (data?.seller_name) {
     elements.sellerName.value = data.seller_name;
   }
@@ -911,6 +1118,7 @@ function bindEvents() {
   elements.searchInput.addEventListener("input", renderMarketplace);
   elements.sortSelect.addEventListener("change", renderMarketplace);
   elements.refreshButton.addEventListener("click", loadItems);
+  elements.adminRefreshButton.addEventListener("click", loadAdminData);
   elements.siteAgreementCheck.addEventListener("change", () => {
     const accepted = elements.siteAgreementCheck.checked;
     elements.acceptAgreementButton.disabled = !accepted;

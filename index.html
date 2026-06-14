@@ -8,7 +8,7 @@
       name="description"
       content="A shared marketplace with secured seller accounts."
     >
-    <link rel="stylesheet" href="styles.css?v=20260614-3">
+    <link rel="stylesheet" href="styles.css?v=20260614-4">
   </head>
   <body>
     <header class="app-header">
@@ -26,6 +26,9 @@
           </button>
           <button class="tab-button" type="button" data-view="seller">
             Seller Tools
+          </button>
+          <button id="adminTabButton" class="tab-button" type="button" data-view="admin" hidden>
+            Admin
           </button>
         </nav>
         <div class="account-actions">
@@ -158,6 +161,38 @@
           </aside>
         </div>
       </section>
+
+      <section id="adminView" class="view" aria-labelledby="adminTitle">
+        <div class="section-heading">
+          <div>
+            <h2 id="adminTitle">Admin</h2>
+            <p id="adminSummary">Moderate sellers and listings.</p>
+          </div>
+          <button id="adminRefreshButton" class="secondary-button" type="button">Refresh Admin</button>
+        </div>
+
+        <div class="admin-layout">
+          <section class="panel">
+            <div class="section-heading compact">
+              <div>
+                <h2>Listings</h2>
+                <p>Hide, restore, remove, or delete marketplace listings.</p>
+              </div>
+            </div>
+            <div id="adminItems" class="admin-list" aria-live="polite"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading compact">
+              <div>
+                <h2>Sellers</h2>
+                <p>Suspend seller posting access when needed.</p>
+              </div>
+            </div>
+            <div id="adminSellers" class="admin-list" aria-live="polite"></div>
+          </section>
+        </div>
+      </section>
     </main>
 
     <div id="agreementModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="agreementTitle" hidden>
@@ -263,6 +298,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="app.js?v=20260614-3" defer></script>
+    <script src="app.js?v=20260614-4" defer></script>
   </body>
 </html>

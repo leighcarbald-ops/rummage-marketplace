@@ -14,6 +14,7 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 - Marketplace cards open a detail popup with larger images and gallery controls.
 - Seller payment options are external Cash App, Venmo, and PayPal links only.
 - Seller account creation requires agreement to the marketplace disclaimer.
+- Admin users can hide, restore, remove, delete listings, and suspend sellers.
 
 ## Files
 
@@ -27,6 +28,7 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 - `supabase-step-3-storage.sql` - image bucket and upload policies
 - `supabase-step-4-payment-and-gallery.sql` - payment links and multiple item images
 - `supabase-step-5-payment-methods.sql` - separate Cash App, Venmo, and PayPal links
+- `supabase-step-6-admin.sql` - admin moderation columns and policies
 - `CNAME` - GitHub Pages custom domain: `S4C.rummagesale.runyourai.pro`
 - `.nojekyll` - GitHub Pages compatibility
 
@@ -39,9 +41,10 @@ The frontend can still be hosted on GitHub Pages and served through Cloudflare. 
 5. Run `supabase-step-3-storage.sql`.
 6. Run `supabase-step-4-payment-and-gallery.sql`.
 7. Run `supabase-step-5-payment-methods.sql`.
-8. Open **Project Settings > API**.
-9. Copy the Project URL and anon public key.
-10. Put them in `config.js`:
+8. Run `supabase-step-6-admin.sql`.
+9. Open **Project Settings > API**.
+10. Copy the Project URL and anon public key.
+11. Put them in `config.js`:
 
 ```js
 window.RUMMAGE_SUPABASE = {
@@ -94,6 +97,19 @@ auth.uid() = owner_id
 ```
 
 That means a seller can only update or delete listings attached to their own login. Even if someone edits the JavaScript in their browser, Supabase should reject cross-seller writes.
+
+## Admin Setup
+
+After you create and confirm your seller account, mark that account as admin in Supabase.
+
+In **Table Editor > profiles**, find your profile row and set:
+
+```text
+is_admin = true
+is_suspended = false
+```
+
+Then sign out and sign back into the marketplace. The **Admin** tab should appear.
 
 ## Payments
 
