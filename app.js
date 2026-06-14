@@ -199,21 +199,55 @@ function withTimeout(promise, message) {
   ]);
 }
 
+async function supabaseFetch(path, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+  const headers = {
+    apikey: config.anonKey,
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  try {
+    const response = await fetch(`${config.url}${path}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { message: text };
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error_description ||
+        data?.msg ||
+        data?.message ||
+        data?.error ||
+        `Request failed with status ${response.status}.`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Supabase did not respond. Check your connection and try again.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 async function directPasswordSignIn(email, password) {
-  const response = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
+  const data = await supabaseFetch("/auth/v1/token?grant_type=password", {
     method: "POST",
-    headers: {
-      apikey: config.anonKey,
-      Authorization: `Bearer ${config.anonKey}`,
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify({ email, password }),
   });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.error_description || data.msg || data.error || "Could not sign in.");
-  }
 
   await supabaseClient.auth.setSession({
     access_token: data.access_token,
@@ -222,6 +256,24 @@ async function directPasswordSignIn(email, password) {
 
   const { data: sessionData } = await supabaseClient.auth.getSession();
   return sessionData.session;
+}
+
+async function directSignUp(email, password) {
+  const data = await supabaseFetch("/auth/v1/signup", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (data.access_token && data.refresh_token) {
+    await supabaseClient.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    });
+    const { data: sessionData } = await supabaseClient.auth.getSession();
+    return sessionData.session;
+  }
+
+  return null;
 }
 
 function requireSupabase() {
@@ -585,19 +637,10 @@ async function loadItems() {
   setBusy(true);
 
   try {
-    const { data, error } = await withTimeout(
-      supabaseClient
-        .from("items")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      "Marketplace items are taking too long to load. Refresh and try again."
+    const data = await supabaseFetch(
+      "/rest/v1/items?select=*&order=created_at.desc",
+      { method: "GET" }
     );
-
-    if (error) {
-      elements.marketSummary.textContent = error.message;
-      showMessage(error.message, true);
-      return;
-    }
 
     state.items = data || [];
     renderAll();
@@ -764,38 +807,12 @@ async function signIn(event) {
   setBusy(true);
 
   try {
-    let signedInSession = null;
-    const { data, error } = await withTimeout(
-      supabaseClient.auth.signInWithPassword({
-        email,
-        password,
-      }),
-      "Sign in is taking too long. Check the email/password and try again."
-    );
-
-    if (error) {
-      showMessage(error.message, true);
-      return;
-    }
-
-    signedInSession = data.session;
-    state.session = signedInSession;
+    state.session = await directPasswordSignIn(email, password);
     await loadSellerProfile();
     await loadItems();
     closeAuthModal();
   } catch (error) {
-    try {
-      showMessage("Retrying sign in...");
-      state.session = await withTimeout(
-        directPasswordSignIn(email, password),
-        "Sign in is taking too long. Please try again in a moment."
-      );
-      await loadSellerProfile();
-      await loadItems();
-      closeAuthModal();
-    } catch (fallbackError) {
-      showMessage(fallbackError.message || error.message || "Could not sign in.", true);
-    }
+    showMessage(error.message || "Could not sign in.", true);
   } finally {
     state.authBusy = false;
     setBusy(false);
@@ -823,27 +840,14 @@ async function signUp() {
   setBusy(true);
 
   try {
-    const { data, error } = await withTimeout(
-      supabaseClient.auth.signUp({
-        email,
-        password,
-      }),
-      "Account creation is taking too long. Try again in a moment."
-    );
-
-    if (error) {
-      showMessage(error.message, true);
-      return;
-    }
-
-    state.session = data.session;
+    state.session = await directSignUp(email, password);
     showMessage(
-      data.session
+      state.session
         ? "Account created. You are signed in."
         : "Account created. Check your email to confirm before signing in."
     );
     await loadItems();
-    if (data.session) {
+    if (state.session) {
       closeAuthModal();
     }
   } catch (error) {
