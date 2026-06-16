@@ -708,7 +708,11 @@ form.panel.is-disabled {
 }
 
 #detailDescription,
-#detailTitle {
+#detailTitle,
+#detailSeller,
+.item-modal .seller-line,
+.item-modal .payment-note,
+.item-modal p {
   color: #111819;
 }
 

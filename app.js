@@ -1,6 +1,24 @@
 const config = window.RUMMAGE_SUPABASE || {};
 const AGREEMENT_KEY = "rummage-marketplace-agreement-v1";
 const SELLER_RULES_KEY = "rummage-marketplace-seller-rules-v1";
+const authRedirectParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+const authRedirectMessage = authRedirectParams
+  .get("error_description")
+  ?.replace(/\+/g, " ");
+
+if (
+  window.location.hash &&
+  (authRedirectParams.has("error") ||
+    authRedirectParams.has("access_token") ||
+    authRedirectParams.has("refresh_token"))
+) {
+  window.history.replaceState(
+    null,
+    document.title,
+    `${window.location.pathname}${window.location.search}`
+  );
+}
+
 const isConfigured =
   config.url &&
   config.anonKey &&
@@ -1308,6 +1326,10 @@ function bindEvents() {
 async function init() {
   elements.setupNotice.hidden = isConfigured;
   bindEvents();
+  if (authRedirectMessage) {
+    elements.marketSummary.textContent =
+      "That email confirmation link has expired. The marketplace is still open below.";
+  }
   await loadSession();
   await loadSellerProfile();
   await loadItems();
