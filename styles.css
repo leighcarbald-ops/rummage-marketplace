@@ -548,6 +548,42 @@ form.panel.is-disabled {
   background: white;
 }
 
+.admin-row.needs-attention {
+  border-color: rgba(214, 159, 37, 0.7);
+  background: #fffaf0;
+}
+
+.status-badge {
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  color: var(--muted);
+  background: #f8fbfa;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+
+.status-active {
+  border-color: rgba(15, 118, 110, 0.35);
+  color: var(--accent-strong);
+  background: #ecfdf5;
+}
+
+.status-pending {
+  border-color: rgba(214, 159, 37, 0.5);
+  color: #8a5a00;
+  background: #fff7df;
+}
+
+.status-hidden,
+.status-removed {
+  border-color: rgba(188, 71, 92, 0.35);
+  color: var(--rose);
+  background: #fff1f3;
+}
+
 .seller-thumb {
   display: grid;
   width: 4.5rem;
@@ -573,19 +609,23 @@ form.panel.is-disabled {
 
 .seller-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.55rem;
 }
 
 .text-button {
-  border: 0;
-  background: transparent;
+  min-height: 2rem;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 7px;
+  background: #ffffff;
   color: var(--accent-strong);
   font-weight: 800;
-  padding: 0;
+  padding: 0.25rem 0.55rem;
 }
 
 .text-button.delete {
+  border-color: rgba(188, 71, 92, 0.25);
   color: var(--rose);
 }
 

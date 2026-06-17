@@ -693,7 +693,13 @@ function renderAdmin() {
     return;
   }
 
-  elements.adminSummary.textContent = `${state.items.length} listing${state.items.length === 1 ? "" : "s"} and ${state.profiles.length} seller profile${state.profiles.length === 1 ? "" : "s"}.`;
+  const pendingItems = state.items.filter((item) => (item.status || "active") === "pending").length;
+  const sellersNeedingApproval = state.profiles.filter(
+    (profile) => !profile.seller_approved || !profile.booth_fee_confirmed
+  ).length;
+  elements.adminSummary.textContent =
+    `${pendingItems} post${pendingItems === 1 ? "" : "s"} waiting, ` +
+    `${sellersNeedingApproval} seller${sellersNeedingApproval === 1 ? "" : "s"} needing approval.`;
 
   if (!state.items.length) {
     const empty = document.createElement("div");
@@ -702,21 +708,25 @@ function renderAdmin() {
     elements.adminItems.append(empty);
   } else {
     state.items.forEach((item) => {
+      const status = item.status || "active";
       const row = document.createElement("article");
-      row.className = "admin-row";
+      row.className = `admin-row ${status === "pending" ? "needs-attention" : ""}`;
       const title = document.createElement("h3");
       title.textContent = item.title;
+      const statusBadge = document.createElement("span");
+      statusBadge.className = `status-badge status-${status}`;
+      statusBadge.textContent = status === "active" ? "Live" : status;
       const meta = document.createElement("p");
       meta.className = "seller-line";
-      meta.textContent = `${formatPrice(item.price)} + ${formatPrice(item.shipping_cost)} shipping - ${item.seller_name} - ${item.status || "active"}`;
+      meta.textContent = `${formatPrice(item.price)} + ${formatPrice(item.shipping_cost)} shipping - ${item.seller_name}`;
       const actions = document.createElement("div");
       actions.className = "seller-actions";
 
       [
-        ["Active", "active"],
-        ["Pending", "pending"],
-        ["Hide", "hidden"],
-        ["Remove", "removed"],
+        [status === "pending" ? "Approve Post" : "Make Live", "active"],
+        ["Send Back to Pending", "pending"],
+        ["Hide Listing", "hidden"],
+        ["Mark Removed", "removed"],
       ].forEach(([label, status]) => {
         const button = document.createElement("button");
         button.className = "text-button";
@@ -734,7 +744,7 @@ function renderAdmin() {
       deleteButton.addEventListener("click", () => adminDeleteItem(item.id));
       actions.append(deleteButton);
 
-      row.append(title, meta, actions);
+      row.append(title, statusBadge, meta, actions);
       elements.adminItems.append(row);
     });
   }
@@ -746,13 +756,17 @@ function renderAdmin() {
     elements.adminSellers.append(empty);
   } else {
     state.profiles.forEach((profile) => {
+      const needsApproval = !profile.seller_approved || !profile.booth_fee_confirmed;
       const row = document.createElement("article");
-      row.className = "admin-row";
+      row.className = `admin-row ${needsApproval ? "needs-attention" : ""}`;
       const title = document.createElement("h3");
       title.textContent = profile.seller_name || profile.id;
+      const statusBadge = document.createElement("span");
+      statusBadge.className = `status-badge ${needsApproval ? "status-pending" : "status-active"}`;
+      statusBadge.textContent = needsApproval ? "Needs admin approval" : "Approved seller";
       const meta = document.createElement("p");
       meta.className = "seller-line";
-      meta.textContent = `${profile.is_admin ? "Admin" : "Seller"} - ${profile.is_suspended ? "Suspended" : "Active"} - ${profile.seller_approved ? "Seller approved" : "Needs approval"} - ${profile.booth_fee_confirmed ? "Booth fee confirmed" : "Booth fee pending"}`;
+      meta.textContent = `${profile.is_admin ? "Admin" : "Seller"} - ${profile.is_suspended ? "Suspended" : "Active"} - ${profile.booth_fee_confirmed ? "Booth fee paid" : "Booth fee not confirmed"}`;
       const actions = document.createElement("div");
       actions.className = "seller-actions";
 
@@ -768,7 +782,7 @@ function renderAdmin() {
       const approveButton = document.createElement("button");
       approveButton.className = "text-button";
       approveButton.type = "button";
-      approveButton.textContent = profile.seller_approved ? "Unapprove" : "Approve Seller";
+      approveButton.textContent = profile.seller_approved ? "Remove Seller Approval" : "Approve Seller Only";
       approveButton.addEventListener("click", () => (
         adminUpdateSellerApproval(profile.id, !profile.seller_approved)
       ));
@@ -776,13 +790,17 @@ function renderAdmin() {
       const boothButton = document.createElement("button");
       boothButton.className = "text-button";
       boothButton.type = "button";
-      boothButton.textContent = profile.booth_fee_confirmed ? "Unconfirm Fee" : "Confirm Fee";
+      boothButton.textContent = profile.booth_fee_confirmed
+        ? "Unconfirm Fee"
+        : "Mark Paid + Approve Posts";
       boothButton.addEventListener("click", () => (
-        adminUpdateBoothFee(profile.id, !profile.booth_fee_confirmed)
+        profile.booth_fee_confirmed
+          ? adminUpdateBoothFee(profile.id, false)
+          : adminApproveSellerAndPosts(profile.id)
       ));
 
       actions.append(suspendButton, approveButton, boothButton);
-      row.append(title, meta, actions);
+      row.append(title, statusBadge, meta, actions);
       elements.adminSellers.append(row);
     });
   }
@@ -1034,6 +1052,46 @@ async function adminUpdateBoothFee(profileId, isConfirmed) {
     await loadAdminData();
   } catch (error) {
     elements.adminSummary.textContent = error.message || "Could not update booth fee.";
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function adminApproveSellerAndPosts(profileId) {
+  if (!isAdmin()) return;
+  setBusy(true);
+  try {
+    const timestamp = new Date().toISOString();
+    await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(profileId)}`, {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        booth_fee_confirmed: true,
+        seller_approved: true,
+        updated_at: timestamp,
+      }),
+    });
+
+    await supabaseFetch(
+      `/rest/v1/items?owner_id=eq.${encodeURIComponent(profileId)}&status=eq.pending`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          status: "active",
+          updated_at: timestamp,
+        }),
+      }
+    );
+
+    await loadAdminData();
+  } catch (error) {
+    elements.adminSummary.textContent =
+      error.message || "Could not approve seller and pending posts.";
   } finally {
     setBusy(false);
   }
