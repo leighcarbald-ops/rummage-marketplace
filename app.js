@@ -1158,7 +1158,7 @@ async function signIn(event) {
   event?.preventDefault();
   if (!requireSupabase()) return;
   if (state.authBusy) return;
-  if (!elements.authForm.reportValidity()) return;
+  showMessage("Checking login...");
 
   const email = elements.authEmail.value.trim();
   const password = elements.authPassword.value;
@@ -1195,7 +1195,7 @@ async function signIn(event) {
 async function signUp() {
   if (!requireSupabase()) return;
   if (state.authBusy) return;
-  if (!elements.authForm.reportValidity()) return;
+  showMessage("Checking account details...");
 
   const email = elements.authEmail.value.trim();
   const password = elements.authPassword.value;
