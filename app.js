@@ -159,18 +159,21 @@ const paymentMethods = [
   {
     key: "cashapp_url",
     label: "Cash App",
+    initials: "CA",
     logo: "assets/cashapp.jpg",
     hosts: ["cash.app"],
   },
   {
     key: "venmo_url",
     label: "Venmo",
+    initials: "V",
     logo: "assets/venmo.png",
     hosts: ["venmo.com"],
   },
   {
     key: "paypal_url",
     label: "PayPal",
+    initials: "PP",
     logo: "assets/paypal.png",
     hosts: ["paypal.me", "paypal.com"],
   },
@@ -209,6 +212,29 @@ function getItemPaymentOptions(item) {
       url: item[method.key] || "",
     }))
     .filter((method) => method.url);
+}
+
+function applyLogoFallback(image, label) {
+  const fallbackText = String(label || "Pay").slice(0, 3);
+  const replaceLogo = () => {
+    const fallback = document.createElement("span");
+    fallback.className = "payment-logo-fallback";
+    fallback.textContent = fallbackText;
+    image.replaceWith(fallback);
+  };
+
+  image.addEventListener("error", replaceLogo, { once: true });
+
+  if (image.complete && image.naturalWidth === 0) {
+    replaceLogo();
+  }
+}
+
+function setupPaymentLogoFallbacks() {
+  document.querySelectorAll(".payment-field img").forEach((image) => {
+    const label = image.closest(".payment-field")?.querySelector("span")?.textContent;
+    applyLogoFallback(image, label);
+  });
 }
 
 function setBusy(isBusy) {
@@ -532,6 +558,7 @@ function openItemModal(itemId) {
       const logo = document.createElement("img");
       logo.src = option.logo;
       logo.alt = "";
+      applyLogoFallback(logo, option.initials);
 
       const text = document.createElement("span");
       text.textContent = option.label;
@@ -1334,6 +1361,7 @@ function bindEvents() {
 
 async function init() {
   elements.setupNotice.hidden = isConfigured;
+  setupPaymentLogoFallbacks();
   bindEvents();
   if (authRedirectMessage) {
     elements.marketSummary.textContent =

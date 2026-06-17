@@ -457,14 +457,27 @@ form.panel.is-disabled {
 }
 
 .payment-field img,
-.payment-option img {
+.payment-option img,
+.payment-logo-fallback {
   width: 2.6rem;
   height: 2.6rem;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: white;
+}
+
+.payment-field img,
+.payment-option img {
   object-fit: contain;
   padding: 0.2rem;
+}
+
+.payment-logo-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 850;
 }
 
 .image-preview {
