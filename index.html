@@ -8,7 +8,7 @@
       name="description"
       content="A shared marketplace with secured seller accounts."
     >
-    <link rel="stylesheet" href="styles.css?v=20260617-2">
+    <link rel="stylesheet" href="styles.css?v=20260617-3">
   </head>
   <body>
     <header class="app-header">
@@ -86,21 +86,27 @@
             </label>
 
             <fieldset class="payment-fields">
-              <legend>Payment links</legend>
+              <legend>Payment names</legend>
               <label class="payment-field">
-                <img src="assets/cashapp.jpg" alt="" aria-hidden="true">
+                <a href="https://cash.app" target="_blank" rel="noopener" aria-label="Open Cash App">
+                  <img src="assets/cashapp.jpg" alt="" aria-hidden="true">
+                </a>
                 <span>Cash App</span>
-                <input id="cashappUrl" name="cashappUrl" type="url" maxlength="240" placeholder="https://cash.app/$yourname">
+                <input id="cashappUrl" name="cashappUrl" type="text" maxlength="80" placeholder="$yourname">
               </label>
               <label class="payment-field">
-                <img src="assets/venmo.png" alt="" aria-hidden="true">
+                <a href="https://venmo.com" target="_blank" rel="noopener" aria-label="Open Venmo">
+                  <img src="assets/venmo.png" alt="" aria-hidden="true">
+                </a>
                 <span>Venmo</span>
-                <input id="venmoUrl" name="venmoUrl" type="url" maxlength="240" placeholder="https://venmo.com/yourname">
+                <input id="venmoUrl" name="venmoUrl" type="text" maxlength="80" placeholder="@yourname">
               </label>
               <label class="payment-field">
-                <img src="assets/paypal.png" alt="" aria-hidden="true">
+                <a href="https://paypal.me" target="_blank" rel="noopener" aria-label="Open PayPal">
+                  <img src="assets/paypal.png" alt="" aria-hidden="true">
+                </a>
                 <span>PayPal</span>
-                <input id="paypalUrl" name="paypalUrl" type="url" maxlength="240" placeholder="https://paypal.me/yourname">
+                <input id="paypalUrl" name="paypalUrl" type="text" maxlength="80" placeholder="yourname">
               </label>
             </fieldset>
 
@@ -370,6 +376,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="app.js?v=20260617-2" defer></script>
+    <script src="app.js?v=20260617-3" defer></script>
   </body>
 </html>

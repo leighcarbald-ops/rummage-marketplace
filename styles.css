@@ -456,6 +456,19 @@ form.panel.is-disabled {
   gap: 0.65rem;
 }
 
+.payment-field a {
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  place-items: center;
+  border-radius: 7px;
+}
+
+.payment-field a:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.25);
+  outline-offset: 2px;
+}
+
 .payment-field img,
 .payment-option img,
 .payment-logo-fallback {

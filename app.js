@@ -162,6 +162,7 @@ const paymentMethods = [
     initials: "CA",
     logo: "assets/cashapp.jpg",
     hosts: ["cash.app"],
+    buildUrl: (handle) => `https://cash.app/$${handle.replace(/^\$/, "")}`,
   },
   {
     key: "venmo_url",
@@ -169,6 +170,7 @@ const paymentMethods = [
     initials: "V",
     logo: "assets/venmo.png",
     hosts: ["venmo.com"],
+    buildUrl: (handle) => `https://venmo.com/${handle.replace(/^@/, "")}`,
   },
   {
     key: "paypal_url",
@@ -176,6 +178,7 @@ const paymentMethods = [
     initials: "PP",
     logo: "assets/paypal.png",
     hosts: ["paypal.me", "paypal.com"],
+    buildUrl: (handle) => `https://paypal.me/${handle.replace(/^@/, "")}`,
   },
 ];
 
@@ -197,11 +200,43 @@ function isAllowedPaymentUrl(value, allowedHosts) {
   }
 }
 
+function cleanPaymentHandle(value) {
+  return value
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/^cash\.app\//i, "")
+    .replace(/^venmo\.com\//i, "")
+    .replace(/^paypal\.me\//i, "")
+    .replace(/^paypal\.com\/paypalme\//i, "")
+    .replace(/^u\//i, "")
+    .replace(/[?#].*$/, "")
+    .replace(/\/$/, "");
+}
+
+function buildPaymentUrl(value, method) {
+  const rawValue = value.trim();
+  if (!rawValue) return "";
+
+  if (/^https:\/\//i.test(rawValue)) {
+    return rawValue;
+  }
+
+  const handle = cleanPaymentHandle(rawValue);
+  if (!handle) return "";
+  return method.buildUrl(handle);
+}
+
+function getPaymentHandle(value) {
+  if (!value) return "";
+  return cleanPaymentHandle(value);
+}
+
 function getPaymentValues() {
   return {
-    cashapp_url: elements.cashappUrl.value.trim(),
-    venmo_url: elements.venmoUrl.value.trim(),
-    paypal_url: elements.paypalUrl.value.trim(),
+    cashapp_url: buildPaymentUrl(elements.cashappUrl.value, paymentMethods[0]),
+    venmo_url: buildPaymentUrl(elements.venmoUrl.value, paymentMethods[1]),
+    paypal_url: buildPaymentUrl(elements.paypalUrl.value, paymentMethods[2]),
   };
 }
 
@@ -868,9 +903,9 @@ function startEdit(itemId) {
 
   elements.editingId.value = item.id;
   elements.sellerName.value = item.seller_name;
-  elements.cashappUrl.value = item.cashapp_url || "";
-  elements.venmoUrl.value = item.venmo_url || "";
-  elements.paypalUrl.value = item.paypal_url || item.payment_url || "";
+  elements.cashappUrl.value = getPaymentHandle(item.cashapp_url);
+  elements.venmoUrl.value = getPaymentHandle(item.venmo_url);
+  elements.paypalUrl.value = getPaymentHandle(item.paypal_url || item.payment_url);
   elements.itemTitle.value = item.title;
   elements.itemDescription.value = item.description;
   elements.itemPrice.value = item.price;
@@ -1347,9 +1382,9 @@ async function loadSellerProfile() {
   if (data?.seller_name) {
     elements.sellerName.value = data.seller_name;
   }
-  elements.cashappUrl.value = data?.cashapp_url || "";
-  elements.venmoUrl.value = data?.venmo_url || "";
-  elements.paypalUrl.value = data?.paypal_url || data?.payment_url || "";
+  elements.cashappUrl.value = getPaymentHandle(data?.cashapp_url);
+  elements.venmoUrl.value = getPaymentHandle(data?.venmo_url);
+  elements.paypalUrl.value = getPaymentHandle(data?.paypal_url || data?.payment_url);
 }
 
 function bindEvents() {
