@@ -342,6 +342,13 @@ button:focus-visible {
   font-weight: 750;
 }
 
+#sellerSummary.is-error,
+#marketSummary.is-error,
+#adminSummary.is-error {
+  color: var(--rose);
+  font-weight: 750;
+}
+
 .item-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));

@@ -290,6 +290,20 @@ function setBusy(isBusy) {
 function showMessage(message, isError = false) {
   elements.authStatus.textContent = message;
   elements.authStatus.classList.toggle("is-error", isError);
+
+  const activeViewId = document.querySelector(".view.is-active")?.id;
+  if (activeViewId === "sellerView") {
+    elements.sellerSummary.textContent = message;
+    elements.sellerSummary.classList.toggle("is-error", isError);
+  }
+  if (activeViewId === "marketplaceView") {
+    elements.marketSummary.textContent = message;
+    elements.marketSummary.classList.toggle("is-error", isError);
+  }
+  if (activeViewId === "adminView") {
+    elements.adminSummary.textContent = message;
+    elements.adminSummary.classList.toggle("is-error", isError);
+  }
 }
 
 function openAuthModal() {
@@ -1200,6 +1214,7 @@ async function handleSubmit(event) {
     return;
   }
 
+  showMessage("Saving listing...");
   setBusy(true);
 
   try {
@@ -1255,7 +1270,17 @@ async function handleSubmit(event) {
         : "Listing saved."
     );
   } catch (error) {
-    showMessage(error.message || "Could not save the listing.", true);
+    const message = error.message || "Could not save the listing.";
+    const needsConditionStep =
+      message.includes("item_condition") ||
+      message.includes("schema cache") ||
+      message.includes("Could not find");
+    showMessage(
+      needsConditionStep
+        ? "Publish needs the new item condition database update. Run supabase-step-8-item-condition.sql in Supabase, then try again."
+        : message,
+      true
+    );
   } finally {
     setBusy(false);
   }
