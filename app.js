@@ -213,8 +213,6 @@ function getItemPaymentOptions(item) {
 
 function setBusy(isBusy) {
   [
-    elements.signInButton,
-    elements.signUpButton,
     elements.signOutButton,
     elements.saveButton,
     elements.refreshButton,
@@ -1157,9 +1155,10 @@ function handleImageChange(event) {
 }
 
 async function signIn(event) {
-  event.preventDefault();
+  event?.preventDefault();
   if (!requireSupabase()) return;
   if (state.authBusy) return;
+  if (!elements.authForm.reportValidity()) return;
 
   const email = elements.authEmail.value.trim();
   const password = elements.authPassword.value;
@@ -1170,6 +1169,8 @@ async function signIn(event) {
 
   state.authBusy = true;
   showMessage("Signing in...");
+  elements.signInButton.disabled = true;
+  elements.signInButton.textContent = "Signing In...";
   setBusy(true);
 
   try {
@@ -1185,6 +1186,8 @@ async function signIn(event) {
     showMessage(error.message || "Could not sign in.", true);
   } finally {
     state.authBusy = false;
+    elements.signInButton.disabled = false;
+    elements.signInButton.textContent = "Sign In";
     setBusy(false);
   }
 }
@@ -1192,6 +1195,7 @@ async function signIn(event) {
 async function signUp() {
   if (!requireSupabase()) return;
   if (state.authBusy) return;
+  if (!elements.authForm.reportValidity()) return;
 
   const email = elements.authEmail.value.trim();
   const password = elements.authPassword.value;
@@ -1202,6 +1206,8 @@ async function signUp() {
 
   state.authBusy = true;
   showMessage("Creating account...");
+  elements.signUpButton.disabled = true;
+  elements.signUpButton.textContent = "Creating...";
   setBusy(true);
 
   try {
@@ -1223,6 +1229,8 @@ async function signUp() {
     showMessage(error.message || "Could not create the account.", true);
   } finally {
     state.authBusy = false;
+    elements.signUpButton.disabled = false;
+    elements.signUpButton.textContent = "Create Account";
     setBusy(false);
   }
 }
@@ -1308,6 +1316,7 @@ function bindEvents() {
     }
   });
   elements.authForm.addEventListener("submit", signIn);
+  elements.signInButton.addEventListener("click", signIn);
   elements.signUpButton.addEventListener("click", signUp);
   elements.signOutButton.addEventListener("click", signOut);
   elements.form.addEventListener("submit", handleSubmit);
