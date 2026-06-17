@@ -8,7 +8,7 @@
       name="description"
       content="A shared marketplace with secured seller accounts."
     >
-    <link rel="stylesheet" href="styles.css?v=20260617-3">
+    <link rel="stylesheet" href="styles.css?v=20260617-5">
   </head>
   <body>
     <header class="app-header">
@@ -138,10 +138,19 @@
                   <option>Home</option>
                   <option>Style</option>
                   <option>Tech</option>
-                  <option>Food</option>
                   <option>Books</option>
                   <option>Services</option>
                   <option>Other</option>
+                </select>
+              </label>
+              <label>
+                <span>Item condition</span>
+                <select id="itemCondition" name="itemCondition">
+                  <option>New</option>
+                  <option>Like New</option>
+                  <option selected>Good</option>
+                  <option>Fair</option>
+                  <option>Needs Repair</option>
                 </select>
               </label>
             </div>
@@ -153,6 +162,12 @@
             <div id="imagePreview" class="image-preview" aria-live="polite">
               <span>No images selected</span>
             </div>
+            <p id="sellerApprovalNote" class="seller-note" hidden>
+              First-time seller posts stay pending until an admin confirms the $20 booth fee and approves seller access.
+            </p>
+            <p class="seller-note">
+              No refunds are handled by this marketplace. Buyers and sellers handle all payment, refund, pickup, and shipping issues directly.
+            </p>
 
             <input id="editingId" type="hidden">
             <div class="form-actions">
@@ -319,6 +334,8 @@
           <div class="form-actions">
             <button id="signInButton" class="primary-button" type="button">Sign In</button>
             <button id="signUpButton" class="secondary-button" type="button">Create Account</button>
+            <button id="resetPasswordButton" class="secondary-button" type="button">Reset Password</button>
+            <button id="updatePasswordButton" class="primary-button" type="button" hidden>Update Password</button>
           </div>
         </form>
       </section>
@@ -351,9 +368,10 @@
               <div class="total-line"><span>Total</span><strong id="detailTotal"></strong></div>
             </div>
             <p id="detailDescription"></p>
+            <p id="detailCondition" class="seller-line"></p>
             <p id="detailSeller" class="seller-line"></p>
             <div id="paymentOptions" class="payment-options" aria-label="Seller payment options"></div>
-            <p class="payment-note">Payments happen directly with the seller through their chosen external payment link.</p>
+            <p class="payment-note">Payments happen directly with the seller. This marketplace does not process payments, guarantee items, or handle refunds.</p>
           </div>
         </div>
       </section>
@@ -376,6 +394,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
-    <script src="app.js?v=20260617-3" defer></script>
+    <script src="app.js?v=20260617-5" defer></script>
   </body>
 </html>

@@ -493,6 +493,16 @@ form.panel.is-disabled {
   font-weight: 850;
 }
 
+.seller-note {
+  color: #111819;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.seller-note[hidden] {
+  display: none;
+}
+
 .image-preview {
   display: grid;
   min-height: 180px;

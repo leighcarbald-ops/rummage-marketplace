@@ -8,9 +8,7 @@ const authRedirectMessage = authRedirectParams
 
 if (
   window.location.hash &&
-  (authRedirectParams.has("error") ||
-    authRedirectParams.has("access_token") ||
-    authRedirectParams.has("refresh_token"))
+  authRedirectParams.has("error")
 ) {
   window.history.replaceState(
     null,
@@ -40,6 +38,7 @@ const state = {
   detailImageIndex: 0,
   authBusy: false,
   loadingItems: false,
+  passwordRecovery: false,
 };
 
 const elements = {
@@ -73,6 +72,8 @@ const elements = {
   authStatus: document.querySelector("#authStatus"),
   signInButton: document.querySelector("#signInButton"),
   signUpButton: document.querySelector("#signUpButton"),
+  resetPasswordButton: document.querySelector("#resetPasswordButton"),
+  updatePasswordButton: document.querySelector("#updatePasswordButton"),
   signOutButton: document.querySelector("#signOutButton"),
   form: document.querySelector("#itemForm"),
   sellerName: document.querySelector("#sellerName"),
@@ -84,8 +85,10 @@ const elements = {
   itemPrice: document.querySelector("#itemPrice"),
   shippingCost: document.querySelector("#shippingCost"),
   itemCategory: document.querySelector("#itemCategory"),
+  itemCondition: document.querySelector("#itemCondition"),
   itemImage: document.querySelector("#itemImage"),
   imagePreview: document.querySelector("#imagePreview"),
+  sellerApprovalNote: document.querySelector("#sellerApprovalNote"),
   editingId: document.querySelector("#editingId"),
   saveButton: document.querySelector("#saveButton"),
   cancelEditButton: document.querySelector("#cancelEditButton"),
@@ -106,6 +109,7 @@ const elements = {
   detailShipping: document.querySelector("#detailShipping"),
   detailTotal: document.querySelector("#detailTotal"),
   detailDescription: document.querySelector("#detailDescription"),
+  detailCondition: document.querySelector("#detailCondition"),
   detailSeller: document.querySelector("#detailSeller"),
   paymentOptions: document.querySelector("#paymentOptions"),
 };
@@ -419,6 +423,15 @@ async function directSignUp(email, password) {
   return null;
 }
 
+async function directPasswordReset(email) {
+  await supabaseFetch(`/auth/v1/recover?redirect_to=${encodeURIComponent(window.location.origin)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      email,
+    }),
+  });
+}
+
 function requireSupabase() {
   if (supabaseClient) return true;
   elements.setupNotice.hidden = false;
@@ -465,7 +478,7 @@ function getVisibleItems() {
   const filtered = state.items.filter((item) => {
     if ((item.status || "active") !== "active") return false;
     const haystack = normalize(
-      `${item.title} ${item.description} ${item.seller_name} ${item.category}`
+      `${item.title} ${item.description} ${item.seller_name} ${item.category} ${item.item_condition || ""}`
     );
     return haystack.includes(query);
   });
@@ -509,7 +522,8 @@ function renderMarketplace() {
     card.querySelector(".item-price").textContent = formatPrice(item.price);
     card.querySelector("h3").textContent = item.title;
     card.querySelector(".item-description").textContent = item.description;
-    card.querySelector(".seller-line").textContent = `Sold by ${item.seller_name}`;
+    card.querySelector(".seller-line").textContent =
+      `${item.item_condition || "Good"} condition - Sold by ${item.seller_name}`;
     card.addEventListener("click", () => openItemModal(item.id));
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
@@ -578,6 +592,7 @@ function openItemModal(itemId) {
   elements.detailShipping.textContent = formatPrice(shippingCost);
   elements.detailTotal.textContent = formatPrice(totalCost);
   elements.detailDescription.textContent = item.description;
+  elements.detailCondition.textContent = `Condition: ${item.item_condition || "Good"}`;
   elements.detailSeller.textContent = `Sold by ${item.seller_name}`;
 
   elements.paymentOptions.textContent = "";
@@ -649,11 +664,13 @@ function renderSellerItems() {
   const userId = currentUserId();
   const ownedItems = state.items.filter((item) => item.owner_id === userId);
   const sellerFields = elements.form.querySelectorAll("input, textarea, select, button");
+  const showApprovalNote = Boolean(userId && !isApprovedSeller());
 
   elements.sellerItems.textContent = "";
   elements.sellerSummary.textContent = userId
     ? `${ownedItems.length} item${ownedItems.length === 1 ? "" : "s"} attached to your login.`
     : "Sign in to manage your listings.";
+  elements.sellerApprovalNote.hidden = !showApprovalNote;
 
   if (!userId) {
     sellerFields.forEach((field) => {
@@ -694,7 +711,7 @@ function renderSellerItems() {
 
     const meta = document.createElement("p");
     meta.className = "seller-line";
-      meta.textContent = `${formatPrice(item.price)} + ${formatPrice(item.shipping_cost)} shipping - ${item.category}`;
+      meta.textContent = `${formatPrice(item.price)} + ${formatPrice(item.shipping_cost)} shipping - ${item.category} - ${item.item_condition || "Good"}`;
 
     const actions = document.createElement("div");
     actions.className = "seller-actions";
@@ -753,7 +770,7 @@ function renderAdmin() {
       statusBadge.textContent = status === "active" ? "Live" : status;
       const meta = document.createElement("p");
       meta.className = "seller-line";
-      meta.textContent = `${formatPrice(item.price)} + ${formatPrice(item.shipping_cost)} shipping - ${item.seller_name}`;
+      meta.textContent = `${formatPrice(item.price)} + ${formatPrice(item.shipping_cost)} shipping - ${item.seller_name} - ${item.item_condition || "Good"}`;
       const actions = document.createElement("div");
       actions.className = "seller-actions";
 
@@ -849,8 +866,12 @@ function renderAuth() {
   elements.signOutButton.hidden = !signedIn;
 
   if (signedIn) {
-    showMessage(`Signed in as ${email}.`);
-    closeAuthModal();
+    if (state.passwordRecovery) {
+      showMessage("Enter a new password, then click Update Password.");
+    } else {
+      showMessage(`Signed in as ${email}.`);
+      closeAuthModal();
+    }
   }
 }
 
@@ -911,6 +932,7 @@ function startEdit(itemId) {
   elements.itemPrice.value = item.price;
   elements.shippingCost.value = numberValue(item.shipping_cost);
   elements.itemCategory.value = item.category;
+  elements.itemCondition.value = item.item_condition || "Good";
   state.imageFiles = [];
   state.existingImageUrls = getItemImages(item);
   elements.saveButton.textContent = "Save Changes";
@@ -1205,6 +1227,7 @@ async function handleSubmit(event) {
       price: Number(elements.itemPrice.value),
       shipping_cost: Number(elements.shippingCost.value) || 0,
       category: elements.itemCategory.value,
+      item_condition: elements.itemCondition.value,
       image_url: imageUrls[0] || null,
       image_urls: imageUrls,
       updated_at: new Date().toISOString(),
@@ -1226,7 +1249,11 @@ async function handleSubmit(event) {
     resetForm();
     switchView("marketplace");
     await loadItems();
-    showMessage("Listing saved.");
+    showMessage(
+      payload.status === "pending"
+        ? "Listing saved. Your first post is waiting for admin approval after the booth fee is confirmed."
+        : "Listing saved."
+    );
   } catch (error) {
     showMessage(error.message || "Could not save the listing.", true);
   } finally {
@@ -1253,25 +1280,82 @@ async function deleteItem(itemId) {
   await loadItems();
 }
 
-function handleImageChange(event) {
+function compressImage(file, maxSize = 1600, quality = 0.78) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      resolve(file);
+      return;
+    }
+
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.addEventListener("load", () => {
+      URL.revokeObjectURL(objectUrl);
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(image, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+
+          const compressedFile = new File(
+            [blob],
+            file.name.replace(/\.[^.]+$/, ".jpg"),
+            { type: "image/jpeg", lastModified: Date.now() }
+          );
+          resolve(compressedFile.size < file.size ? compressedFile : file);
+        },
+        "image/jpeg",
+        quality
+      );
+    });
+
+    image.addEventListener("error", () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error(`Could not read ${file.name}.`));
+    });
+
+    image.src = objectUrl;
+  });
+}
+
+async function handleImageChange(event) {
   const files = Array.from(event.target.files || []);
-  state.imageFiles = files;
 
   if (!files.length) {
+    state.imageFiles = [];
     setImagePreview(state.existingImageUrls);
     return;
   }
 
-  Promise.all(
-    files.map(
-      (file) =>
-        new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.addEventListener("load", () => resolve(String(reader.result || "")));
-          reader.readAsDataURL(file);
-        })
-    )
-  ).then((previews) => setImagePreview(previews));
+  elements.imagePreview.textContent = "Preparing smaller image files...";
+
+  try {
+    state.imageFiles = await Promise.all(files.map((file) => compressImage(file)));
+    const previews = await Promise.all(
+      state.imageFiles.map(
+        (file) =>
+          new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.addEventListener("load", () => resolve(String(reader.result || "")));
+            reader.readAsDataURL(file);
+          })
+      )
+    );
+    setImagePreview(previews);
+  } catch (error) {
+    state.imageFiles = files;
+    showMessage(error.message || "Could not compress images. Original images will be used.", true);
+  }
 }
 
 async function signIn(event) {
@@ -1352,6 +1436,67 @@ async function signUp() {
     elements.signUpButton.disabled = false;
     elements.signUpButton.textContent = "Create Account";
     setBusy(false);
+  }
+}
+
+async function resetPassword() {
+  if (!requireSupabase()) return;
+  if (state.authBusy) return;
+
+  const email = elements.authEmail.value.trim();
+  if (!email) {
+    showMessage("Enter your email first, then click Reset Password.", true);
+    return;
+  }
+
+  state.authBusy = true;
+  elements.resetPasswordButton.disabled = true;
+  elements.resetPasswordButton.textContent = "Sending...";
+  showMessage("Sending password reset email...");
+
+  try {
+    await directPasswordReset(email);
+    showMessage("Password reset email sent. Check your inbox.");
+  } catch (error) {
+    showMessage(error.message || "Could not send password reset email.", true);
+  } finally {
+    state.authBusy = false;
+    elements.resetPasswordButton.disabled = false;
+    elements.resetPasswordButton.textContent = "Reset Password";
+  }
+}
+
+async function updatePassword() {
+  if (!requireSupabase()) return;
+  if (state.authBusy) return;
+
+  const password = elements.authPassword.value;
+  if (!password || password.length < 6) {
+    showMessage("Enter a new password with at least 6 characters.", true);
+    return;
+  }
+
+  state.authBusy = true;
+  elements.updatePasswordButton.disabled = true;
+  elements.updatePasswordButton.textContent = "Updating...";
+  showMessage("Updating password...");
+
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if (error) throw error;
+    state.passwordRecovery = false;
+    elements.updatePasswordButton.hidden = true;
+    elements.signInButton.hidden = false;
+    elements.signUpButton.hidden = false;
+    elements.resetPasswordButton.hidden = false;
+    showMessage("Password updated. You are signed in.");
+    closeAuthModal();
+  } catch (error) {
+    showMessage(error.message || "Could not update password.", true);
+  } finally {
+    state.authBusy = false;
+    elements.updatePasswordButton.disabled = false;
+    elements.updatePasswordButton.textContent = "Update Password";
   }
 }
 
@@ -1438,14 +1583,25 @@ function bindEvents() {
   elements.authForm.addEventListener("submit", signIn);
   elements.signInButton.addEventListener("click", signIn);
   elements.signUpButton.addEventListener("click", signUp);
+  elements.resetPasswordButton.addEventListener("click", resetPassword);
+  elements.updatePasswordButton.addEventListener("click", updatePassword);
   elements.signOutButton.addEventListener("click", signOut);
   elements.form.addEventListener("submit", handleSubmit);
   elements.itemImage.addEventListener("change", handleImageChange);
   elements.cancelEditButton.addEventListener("click", resetForm);
 
   if (supabaseClient) {
-    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
       state.session = session;
+      if (event === "PASSWORD_RECOVERY") {
+        state.passwordRecovery = true;
+        elements.signInButton.hidden = true;
+        elements.signUpButton.hidden = true;
+        elements.resetPasswordButton.hidden = true;
+        elements.updatePasswordButton.hidden = false;
+        openAuthModal();
+        showMessage("Enter a new password, then click Update Password.");
+      }
       await loadSellerProfile();
       renderAll();
     });
