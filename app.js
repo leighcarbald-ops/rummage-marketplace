@@ -24,7 +24,13 @@ const isConfigured =
   !config.anonKey.includes("YOUR_PUBLIC_ANON_KEY");
 
 const supabaseClient = isConfigured
-  ? window.supabase.createClient(config.url, config.anonKey)
+  ? window.supabase.createClient(config.url, config.anonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
   : null;
 
 const state = {
@@ -37,6 +43,8 @@ const state = {
   detailItem: null,
   detailImageIndex: 0,
   authBusy: false,
+  authReady: false,
+  booting: true,
   loadingItems: false,
   passwordRecovery: false,
 };
@@ -134,11 +142,24 @@ function currentUserId() {
 }
 
 function isAdmin() {
+  if (!state.authReady) return false;
   return Boolean(state.profile?.is_admin);
 }
 
 function isApprovedSeller() {
+  if (!state.authReady) return false;
   return Boolean(state.profile?.seller_approved || state.profile?.is_admin);
+}
+
+async function clearBrokenAuthSession() {
+  state.session = null;
+  state.profile = null;
+  state.profiles = [];
+  try {
+    await supabaseClient?.auth.signOut({ scope: "local" });
+  } catch {
+    localStorage.removeItem(`sb-${new URL(config.url).hostname.split(".")[0]}-auth-token`);
+  }
 }
 
 function createPlaceholder(title) {
@@ -897,6 +918,10 @@ function renderAll() {
 }
 
 function switchView(viewName) {
+  if (viewName === "admin" && (!state.authReady || !isAdmin())) {
+    viewName = "marketplace";
+  }
+
   elements.tabs.forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.view === viewName);
   });
@@ -907,11 +932,6 @@ function switchView(viewName) {
   if (viewName === "seller" && !state.session) {
     showMessage("Sign in or create a seller account to manage listings.");
     openSellerEntry();
-  }
-
-  if (viewName === "admin" && !isAdmin()) {
-    switchView("marketplace");
-    return;
   }
 
   if (viewName === "admin") {
@@ -958,12 +978,32 @@ function startEdit(itemId) {
 
 async function loadSession() {
   if (!requireSupabase()) return;
-  const { data, error } = await supabaseClient.auth.getSession();
-  if (error) {
-    showMessage(error.message, true);
-    return;
+  state.authReady = false;
+
+  try {
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+
+    if (!data.session) {
+      state.session = null;
+      state.profile = null;
+      state.authReady = true;
+      return;
+    }
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !userData?.user) {
+      await clearBrokenAuthSession();
+      state.authReady = true;
+      return;
+    }
+
+    state.session = data.session;
+  } catch (error) {
+    await clearBrokenAuthSession();
+  } finally {
+    state.authReady = true;
   }
-  state.session = data.session;
 }
 
 async function loadItems() {
@@ -977,11 +1017,15 @@ async function loadItems() {
   setBusy(true);
 
   try {
+    const useAdminQuery = state.authReady && isAdmin();
     const data = await supabaseFetch(
-      isAdmin()
+      useAdminQuery
         ? "/rest/v1/items?select=*&order=created_at.desc"
         : "/rest/v1/items?select=*&status=eq.active&order=created_at.desc",
-      { method: "GET" }
+      {
+        method: "GET",
+        headers: useAdminQuery ? {} : { Authorization: `Bearer ${config.anonKey}` },
+      }
     );
 
     state.items = data || [];
@@ -1527,10 +1571,8 @@ async function updatePassword() {
 
 async function signOut() {
   if (!requireSupabase()) return;
-  await supabaseClient.auth.signOut();
-  state.session = null;
-  state.profile = null;
-  state.profiles = [];
+  await clearBrokenAuthSession();
+  state.authReady = true;
   elements.authForm.reset();
   resetForm();
   await loadItems();
@@ -1538,23 +1580,30 @@ async function signOut() {
 }
 
 async function loadSellerProfile() {
-  if (!state.session) {
+  if (!state.authReady || !state.session) {
     state.profile = null;
     return;
   }
-  const { data } = await supabaseClient
-    .from("profiles")
-    .select("id,seller_name,payment_url,cashapp_url,venmo_url,paypal_url,is_admin,is_suspended,seller_approved,booth_fee_confirmed,seller_rules_accepted")
-    .eq("id", currentUserId())
-    .maybeSingle();
 
-  state.profile = data || null;
-  if (data?.seller_name) {
-    elements.sellerName.value = data.seller_name;
+  try {
+    const { data, error } = await supabaseClient
+      .from("profiles")
+      .select("id,seller_name,payment_url,cashapp_url,venmo_url,paypal_url,is_admin,is_suspended,seller_approved,booth_fee_confirmed,seller_rules_accepted")
+      .eq("id", currentUserId())
+      .maybeSingle();
+
+    if (error) throw error;
+
+    state.profile = data || null;
+    if (data?.seller_name) {
+      elements.sellerName.value = data.seller_name;
+    }
+    elements.cashappUrl.value = getPaymentHandle(data?.cashapp_url);
+    elements.venmoUrl.value = getPaymentHandle(data?.venmo_url);
+    elements.paypalUrl.value = getPaymentHandle(data?.paypal_url || data?.payment_url);
+  } catch {
+    await clearBrokenAuthSession();
   }
-  elements.cashappUrl.value = getPaymentHandle(data?.cashapp_url);
-  elements.venmoUrl.value = getPaymentHandle(data?.venmo_url);
-  elements.paypalUrl.value = getPaymentHandle(data?.paypal_url || data?.payment_url);
 }
 
 function bindEvents() {
@@ -1618,6 +1667,7 @@ function bindEvents() {
   if (supabaseClient) {
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
       state.session = session;
+      state.authReady = true;
       if (event === "PASSWORD_RECOVERY") {
         state.passwordRecovery = true;
         elements.signInButton.hidden = true;
@@ -1627,6 +1677,7 @@ function bindEvents() {
         openAuthModal();
         showMessage("Enter a new password, then click Update Password.");
       }
+      if (state.booting) return;
       await loadSellerProfile();
       renderAll();
     });
@@ -1634,6 +1685,7 @@ function bindEvents() {
 }
 
 async function init() {
+  state.booting = true;
   elements.setupNotice.hidden = isConfigured;
   setupPaymentLogoFallbacks();
   bindEvents();
@@ -1645,6 +1697,7 @@ async function init() {
   await loadSellerProfile();
   await loadItems();
   showAgreementIfNeeded();
+  state.booting = false;
 }
 
 init();
