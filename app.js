@@ -327,6 +327,14 @@ function showMessage(message, isError = false) {
   }
 }
 
+function friendlyError(error, fallback = "Something went wrong.") {
+  const message = error?.message || fallback;
+  if (message === "Failed to fetch" || message.includes("NetworkError")) {
+    return "Could not reach Supabase. Check internet connection, browser privacy/ad blocker settings, or whether Supabase is temporarily blocked.";
+  }
+  return message;
+}
+
 function openAuthModal() {
   if (!state.session) {
     showMessage("Sign in or create a seller account to manage your own listings.");
@@ -426,45 +434,31 @@ async function supabaseFetch(path, options = {}) {
 }
 
 async function directPasswordSignIn(email, password) {
-  const data = await supabaseFetch("/auth/v1/token?grant_type=password", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password,
   });
-
-  await supabaseClient.auth.setSession({
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-  });
-
-  const { data: sessionData } = await supabaseClient.auth.getSession();
-  return sessionData.session;
+  if (error) throw error;
+  return data.session;
 }
 
 async function directSignUp(email, password) {
-  const data = await supabaseFetch("/auth/v1/signup", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: window.location.origin,
+    },
   });
-
-  if (data.access_token && data.refresh_token) {
-    await supabaseClient.auth.setSession({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-    });
-    const { data: sessionData } = await supabaseClient.auth.getSession();
-    return sessionData.session;
-  }
-
-  return null;
+  if (error) throw error;
+  return data.session;
 }
 
 async function directPasswordReset(email) {
-  await supabaseFetch(`/auth/v1/recover?redirect_to=${encodeURIComponent(window.location.origin)}`, {
-    method: "POST",
-    body: JSON.stringify({
-      email,
-    }),
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
   });
+  if (error) throw error;
 }
 
 function requireSupabase() {
@@ -1018,20 +1012,21 @@ async function loadItems() {
 
   try {
     const useAdminQuery = state.authReady && isAdmin();
-    const data = await supabaseFetch(
-      useAdminQuery
-        ? "/rest/v1/items?select=*&order=created_at.desc"
-        : "/rest/v1/items?select=*&status=eq.active&order=created_at.desc",
-      {
-        method: "GET",
-        headers: useAdminQuery ? {} : { Authorization: `Bearer ${config.anonKey}` },
-      }
-    );
+    let query = supabaseClient.from("items").select("*").order("created_at", {
+      ascending: false,
+    });
+
+    if (!useAdminQuery) {
+      query = query.eq("status", "active");
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
 
     state.items = data || [];
     renderAll();
   } catch (error) {
-    elements.marketSummary.textContent = error.message || "Could not load marketplace items.";
+    elements.marketSummary.textContent = friendlyError(error, "Could not load marketplace items.");
     showMessage(elements.marketSummary.textContent, true);
   } finally {
     state.loadingItems = false;
@@ -1456,7 +1451,7 @@ async function signIn(event) {
     await loadItems();
     closeAuthModal();
   } catch (error) {
-    showMessage(error.message || "Could not sign in.", true);
+    showMessage(friendlyError(error, "Could not sign in."), true);
   } finally {
     state.authBusy = false;
     elements.signInButton.disabled = false;
@@ -1499,7 +1494,7 @@ async function signUp() {
       closeAuthModal();
     }
   } catch (error) {
-    showMessage(error.message || "Could not create the account.", true);
+    showMessage(friendlyError(error, "Could not create the account."), true);
   } finally {
     state.authBusy = false;
     elements.signUpButton.disabled = false;
@@ -1527,7 +1522,7 @@ async function resetPassword() {
     await directPasswordReset(email);
     showMessage("Password reset email sent. Check your inbox.");
   } catch (error) {
-    showMessage(error.message || "Could not send password reset email.", true);
+    showMessage(friendlyError(error, "Could not send password reset email."), true);
   } finally {
     state.authBusy = false;
     elements.resetPasswordButton.disabled = false;
