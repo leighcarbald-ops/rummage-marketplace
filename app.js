@@ -330,6 +330,9 @@ function showMessage(message, isError = false) {
 function friendlyError(error, fallback = "Something went wrong.") {
   const message = error?.message || fallback;
   if (message === "Failed to fetch" || message.includes("NetworkError")) {
+    if (window.location.protocol === "file:") {
+      return "This local file copy cannot reliably reach Supabase. Open the live site at https://s4c.rummagesale.runyourai.pro/ or run it through a local web server.";
+    }
     return "Could not reach Supabase. Check internet connection, browser privacy/ad blocker settings, or whether Supabase is temporarily blocked.";
   }
   return message;
