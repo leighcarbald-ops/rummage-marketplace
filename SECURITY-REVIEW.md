@@ -18,3 +18,10 @@ Status: **investigation required; do not run a migration blindly**.
 5. Test anonymous, unapproved seller, approved seller, and administrator roles in a staging Supabase project before production rollout.
 
 No live database settings were changed by this review.
+
+## Read-only database diagnostic
+
+Run `security/supabase-authorization-audit.sql` in the Supabase SQL Editor.
+It lists policy definitions and privileges for the security-sensitive columns without querying user or listing data.
+Compare the results against the expected approval workflow before writing a migration.
+Do not post secret keys, session tokens, or customer data in a pull request.
